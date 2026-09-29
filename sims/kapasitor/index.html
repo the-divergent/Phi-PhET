@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab Kapasitor — Divergent Lab</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --acc:#fbbf24; --txt:#e2e8f0; --mut:#94a3b8; --line:#334155; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,sans-serif; padding:16px; max-width:780px; margin:0 auto; }
+  .top { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .top a { color:var(--acc); text-decoration:none; font-size:.9rem; }
+  h1 { font-size:1.35rem; } h1 span { color:var(--acc); }
+  .hint { font-size:.82rem; color:var(--mut); margin:6px 0 12px; line-height:1.6; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
+  canvas { width:100%; border-radius:8px; background:#0b1220; display:block; }
+  .ctl { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
+  label { display:block; font-size:.8rem; color:var(--mut); margin:10px 0 4px; }
+  label b { color:var(--txt); float:right; }
+  input[type=range]{ width:100%; accent-color:var(--acc); }
+  select { width:100%; padding:8px; border-radius:8px; background:#0f172a; color:var(--txt); border:1px solid var(--line); }
+  .btns { display:flex; gap:10px; margin-top:14px; }
+  button.go { flex:1; padding:12px; border-radius:8px; border:none; font-weight:700; font-size:.95rem; cursor:pointer; }
+  #bIsi { background:var(--acc); color:#111; } #bKosong { background:#334155; color:var(--txt); }
+  button.go.on { outline:3px solid #fff; }
+  .read { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px; }
+  .read div { background:#0f172a; border:1px dashed #475569; border-radius:8px; padding:8px 4px; text-align:center; }
+  .read .v { font-size:1.05rem; color:var(--acc); font-weight:700; }
+  .read .k { font-size:.68rem; color:var(--mut); margin-top:2px; }
+</style>
+</head>
+<body>
+<div class="top"><a href="../../index.html">← Semua simulasi</a></div>
+<h1>Lab <span>Kapasitor</span></h1>
+<p class="hint">Tekan <b>Isi daya</b> untuk mengisi kapasitor lewat resistor, atau <b>Kosongkan</b> untuk mengosongkannya. Amati muatan di pelat dan kurva Vc(t).</p>
+<div class="card"><canvas id="cv" width="680" height="300"></canvas></div>
+<div class="card"><canvas id="gr" width="680" height="180"></canvas>
+  <p class="hint" style="margin:8px 0 0">Grafik: <span style="color:#fbbf24">— tegangan kapasitor Vc</span> &nbsp; <span style="color:#38bdf8">— arus I</span></p>
+</div>
+<div class="card">
+  <div class="ctl">
+    <div><label>Tegangan sumber <b id="vL">9 V</b></label><input type="range" id="vR" min="1" max="24" step="0.5" value="9"></div>
+    <div><label>Resistor <b id="rL">220 Ω</b></label><input type="range" id="rR" min="10" max="1000" step="10" value="220"></div>
+    <div><label>Kapasitor <b id="cL">4700 µF</b></label><input type="range" id="cR" min="100" max="10000" step="100" value="4700"></div>
+    <div><label>Kecepatan simulasi</label><select id="spd"><option value="1">1× (real-time)</option><option value="5" selected>5×</option><option value="20">20×</option></select></div>
+  </div>
+  <div class="btns">
+    <button class="go on" id="bIsi">⚡ Isi daya</button>
+    <button class="go" id="bKosong">🔌 Kosongkan</button>
+  </div>
+  <div class="read">
+    <div><div class="v" id="oVc">0.00 V</div><div class="k">Vc</div></div>
+    <div><div class="v" id="oI">0.0 mA</div><div class="k">Arus</div></div>
+    <div><div class="v" id="oQ">0.0 mC</div><div class="k">Muatan Q</div></div>
+    <div><div class="v" id="oT">1.03 s</div><div class="k">τ = RC</div></div>
+  </div>
+  <p class="hint">Q = C × Vc &nbsp;•&nbsp; E = ½ × C × Vc² &nbsp;•&nbsp; Setelah 5τ kapasitor dianggap penuh/kosong.</p>
+</div>
+<script>
+const cv=document.getElementById('cv'), cx=cv.getContext('2d');
+const gr=document.getElementById('gr'), gx=gr.getContext('2d');
+let Vs=9, R=220, C=4700e-6, Vc=0, mode='isi', speed=5, I=0, t=0;
+let hist=[];
+const $=id=>document.getElementById(id);
+function upd(){
+  Vs=+$('vR').value; R=+$('rR').value; C=+$('cR').value*1e-6; speed=+$('spd').value;
+  $('vL').textContent=Vs+' V'; $('rL').textContent=R+' Ω';
+  $('cL').textContent=$('cR').value+' µF';
+  $('oT').textContent=(R*$('cR').value*1e-6).toFixed(2)+' s';
+}
+['vR','rR','cR','spd'].forEach(id=>$(id).oninput=upd); upd();
+$('bIsi').onclick=()=>{mode='isi';$('bIsi').classList.add('on');$('bKosong').classList.remove('on');};
+$('bKosong').onclick=()=>{mode='kosong';$('bKosong').classList.add('on');$('bIsi').classList.remove('on');};
+
+let last=performance.now();
+function step(now){
+  let dt=Math.min((now-last)/1000,0.1); last=now;
+  const tau=R*C, sdt=dt*speed;
+  if(mode==='isi'){ const d=Vc+(Vs-Vc)*(1-Math.exp(-sdt/tau)); I=(Vs-Vc)/R; Vc=d; }
+  else { Vc=Vc*Math.exp(-sdt/tau); I=-Vc/R; }
+  t+=sdt;
+  hist.push({t,Vc,I}); if(hist.length>400) hist.shift();
+  // readout
+  $('oVc').textContent=Vc.toFixed(2)+' V';
+  $('oI').textContent=(I*1000).toFixed(1)+' mA';
+  $('oQ').textContent=(C*Vc*1000).toFixed(1)+' mC';
+  draw(); drawGraph();
+  requestAnimationFrame(step);
+}
+function draw(){
+  cx.clearRect(0,0,cv.width,cv.height);
+  cx.strokeStyle='#64748b'; cx.lineWidth=5;
+  // loop: baterai kiri, resistor atas, kapasitor kanan
+  const x0=120,y0=60,x1=560,y1=240;
+  cx.strokeRect(x0,y0,x1-x0,y1-y0);
+  // baterai
+  cx.strokeStyle='#e2e8f0'; cx.lineWidth=4;
+  cx.beginPath();cx.moveTo(x0-14,y0+80);cx.lineTo(x0+14,y0+80);cx.stroke();
+  cx.lineWidth=2;cx.beginPath();cx.moveTo(x0-22,y0+120);cx.lineTo(x0+22,y0+120);cx.stroke();
+  cx.fillStyle='#94a3b8';cx.font='15px sans-serif';cx.fillText(Vs+' V',x0-20,y0+150);
+  // resistor zigzag atas
+  const rx0=x0+140,rx1=x1-140,n=5,seg=(rx1-rx0)/(n*2);
+  cx.strokeStyle='#fbbf24';cx.lineWidth=4;cx.beginPath();cx.moveTo(rx0,y0);
+  for(let i=0;i<n;i++){cx.lineTo(rx0+seg*(2*i+.5),y0-20);cx.lineTo(rx0+seg*(2*i+1.5),y0+20);}
+  cx.lineTo(rx1,y0);cx.stroke();
+  cx.fillStyle='#94a3b8';cx.fillText(R+' Ω',(rx0+rx1)/2-16,y0+42);
+  // kapasitor: dua pelat kanan
+  const px=x1,py0=y0+70,py1=y1-70;
+  cx.strokeStyle='#e2e8f0';cx.lineWidth=6;
+  cx.beginPath();cx.moveTo(px-24,py0);cx.lineTo(px+24,py0);cx.stroke();
+  cx.beginPath();cx.moveTo(px-24,py1);cx.lineTo(px+24,py1);cx.stroke();
+  cx.fillStyle='#94a3b8';cx.font='15px sans-serif';cx.fillText($('cR').value+' µF',px-34,(py0+py1)/2+5);
+  // muatan di pelat ∝ Vc
+  const q=Math.round(Math.abs(Vc)/Math.max(Vs,0.01)*8), sgn=Vc>=0?1:-1;
+  cx.font='bold 17px sans-serif';
+  for(let i=0;i<q;i++){
+    cx.fillStyle='#f87171';cx.fillText(sgn>0?'+':'−',px-44+i*11,py0-12);
+    cx.fillStyle='#38bdf8';cx.fillText(sgn>0?'−':'+',px-44+i*11,py1+26);
+  }
+  // status
+  cx.fillStyle= mode==='isi' ? '#fbbf24' : '#38bdf8';
+  cx.font='bold 16px sans-serif';
+  cx.fillText(mode==='isi'?'⚡ MENGISI':'🔌 MENGOSONGKAN', 20, 30);
+  // arus animasi sederhana: panah arah
+  if(Math.abs(I)>0.0005){
+    cx.fillStyle='#fbbf24';cx.font='15px sans-serif';
+    const dir = I>0 ? '→' : '←';
+    cx.fillText('I '+dir+' '+Math.abs(I*1000).toFixed(1)+' mA', x0+200, y1+34);
+  }
+}
+function drawGraph(){
+  gx.clearRect(0,0,gr.width,gr.height);
+  gx.strokeStyle='#1e293b';gx.lineWidth=1;
+  for(let y=0;y<gr.height;y+=30){gx.beginPath();gx.moveTo(0,y);gx.lineTo(gr.width,y);gx.stroke();}
+  if(hist.length<2)return;
+  const t1=hist[hist.length-1].t, t0=Math.max(hist[0].t,t1-20);
+  const X=t=>(t-t0)/Math.max(t1-t0,0.01)*gr.width;
+  const vMax=Math.max(Vs,...hist.map(h=>Math.abs(h.Vc)))*1.15;
+  const iMax=Math.max(0.001,...hist.map(h=>Math.abs(h.I)))*1.3;
+  const Yv=v=>gr.height-14-(v/vMax)*(gr.height-40);
+  const Yi=i=>gr.height-14-(Math.abs(i)/iMax)*(gr.height-40);
+  gx.lineWidth=2.5;gx.strokeStyle='#fbbf24';gx.beginPath();
+  hist.forEach((h,i)=>{const x=X(h.t),y=Yv(h.Vc);i?gx.lineTo(x,y):gx.moveTo(x,y);});gx.stroke();
+  gx.strokeStyle='#38bdf8';gx.beginPath();
+  hist.forEach((h,i)=>{const x=X(h.t),y=Yi(h.I);i?gx.lineTo(x,y):gx.moveTo(x,y);});gx.stroke();
+  gx.fillStyle='#94a3b8';gx.font='12px sans-serif';
+  gx.fillText('Vc maks '+vMax.toFixed(1)+' V',8,16);
+}
+requestAnimationFrame(step);
+</script>
+</body>
+</html>

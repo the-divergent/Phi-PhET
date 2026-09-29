@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab Hukum Ohm — Divergent Lab</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --acc:#fbbf24; --txt:#e2e8f0; --mut:#94a3b8; --line:#334155; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,sans-serif; padding:16px; max-width:760px; margin:0 auto; }
+  .top { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .top a { color:var(--acc); text-decoration:none; font-size:.9rem; }
+  h1 { font-size:1.35rem; } h1 span { color:var(--acc); }
+  .wrap { display:grid; grid-template-columns:1fr; gap:14px; }
+  @media(min-width:640px){ .wrap { grid-template-columns:1.2fr .8fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  canvas { width:100%; border-radius:8px; background:#0b1220; display:block; }
+  label { display:block; font-size:.82rem; color:var(--mut); margin:12px 0 4px; }
+  label b { color:var(--txt); float:right; }
+  input[type=range] { width:100%; accent-color:var(--acc); }
+  .read { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+  .read div { background:#0f172a; border:1px dashed #475569; border-radius:8px; padding:10px; text-align:center; }
+  .read .v { font-size:1.35rem; color:var(--acc); font-weight:700; }
+  .read .k { font-size:.72rem; color:var(--mut); margin-top:2px; }
+  .formula { margin-top:14px; text-align:center; font-size:1.05rem; color:var(--mut); }
+  .formula b { color:var(--acc); }
+  .hint { font-size:.8rem; color:var(--mut); margin-top:10px; line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="top"><a href="../../index.html">← Semua simulasi</a></div>
+<h1>Lab Hukum <span>Ohm</span></h1>
+<p class="hint">Ubah tegangan (V) dan hambatan (R), amati arus (I) yang mengalir. Berlaku: <b>I = V / R</b></p>
+<div class="wrap" style="margin-top:12px">
+  <div class="card">
+    <canvas id="cv" width="640" height="400"></canvas>
+  </div>
+  <div class="card">
+    <label>Tegangan baterai <b id="vLab">12 V</b></label>
+    <input type="range" id="vRg" min="0" max="24" step="0.5" value="12">
+    <label>Hambatan resistor <b id="rLab">10 Ω</b></label>
+    <input type="range" id="rRg" min="1" max="100" step="1" value="10">
+    <div class="read">
+      <div><div class="v" id="iVal">1.20 A</div><div class="k">Arus (I)</div></div>
+      <div><div class="v" id="pVal">14.4 W</div><div class="k">Daya (P)</div></div>
+    </div>
+    <div class="formula">I = <b>V</b> / <b>R</b> &nbsp;•&nbsp; P = <b>V</b> × <b>I</b></div>
+    <p class="hint">Titik kuning = elektron. Makin besar arus, makin cepat gerakannya. Resistor memanas (berpendar) saat daya besar.</p>
+  </div>
+</div>
+<script>
+const cv = document.getElementById('cv'), cx = cv.getContext('2d');
+let V = 12, R = 10, dots = [];
+for (let i = 0; i < 40; i++) dots.push({ t: Math.random() });
+
+const vRg = document.getElementById('vRg'), rRg = document.getElementById('rRg');
+function fmt(n, d=2){ return n.toFixed(d); }
+function upd(){
+  V = parseFloat(vRg.value); R = parseFloat(rRg.value);
+  document.getElementById('vLab').textContent = V + ' V';
+  document.getElementById('rLab').textContent = R + ' Ω';
+  const I = V / R, P = V * I;
+  document.getElementById('iVal').textContent = fmt(I) + ' A';
+  document.getElementById('pVal').textContent = fmt(P,1) + ' W';
+}
+vRg.oninput = upd; rRg.oninput = upd; upd();
+
+// Jalur loop: persegi panjang (x0,y0)-(x1,y1)
+const X0=90, Y0=90, X1=550, Y1=310;
+function pathPoint(t){
+  const w=X1-X0, h=Y1-Y0, per=2*(w+h);
+  let d = ((t%1)+1)%1 * per;
+  if (d < w) return [X0+d, Y0];
+  d-=w; if (d < h) return [X1, Y0+d];
+  d-=h; if (d < w) return [X1-d, Y1];
+  d-=w; return [X0, Y1-d];
+}
+function draw(){
+  const I = V/R, P = V*I;
+  cx.clearRect(0,0,cv.width,cv.height);
+  // kabel
+  cx.strokeStyle='#64748b'; cx.lineWidth=5;
+  cx.strokeRect(X0,Y0,X1-X0,Y1-Y0);
+  // baterai di sisi kiri (vertikal): garis panjang (+) atas
+  cx.strokeStyle='#e2e8f0'; cx.lineWidth=4;
+  cx.beginPath(); cx.moveTo(X0-14,Y0+90); cx.lineTo(X0+14,Y0+90); cx.stroke(); // pendek (-)
+  cx.lineWidth=2;
+  cx.beginPath(); cx.moveTo(X0-22,Y0+130); cx.lineTo(X0+22,Y0+130); cx.stroke(); // panjang (+)
+  cx.fillStyle='#94a3b8'; cx.font='16px sans-serif';
+  cx.fillText('−', X0-30, Y0+96); cx.fillText('+', X0-28, Y0+150);
+  cx.fillText(V+' V', X0-24, Y0+175);
+  // resistor zigzag di sisi atas
+  const rx0=X0+150, rx1=X1-150, ry=Y0, n=6;
+  cx.strokeStyle = P > 60 ? '#f87171' : '#fbbf24'; cx.lineWidth=4;
+  cx.beginPath(); cx.moveTo(rx0,ry);
+  const seg=(rx1-rx0)/(n*2);
+  for(let i=0;i<n;i++){
+    cx.lineTo(rx0+seg*(2*i+0.5), ry-22);
+    cx.lineTo(rx0+seg*(2*i+1.5), ry+22);
+  }
+  cx.lineTo(rx1,ry); cx.stroke();
+  cx.fillStyle='#94a3b8'; cx.font='15px sans-serif';
+  cx.fillText(R+' Ω', (rx0+rx1)/2-18, ry+48);
+  if (P > 60){ // pijar
+    cx.fillStyle='rgba(248,113,113,.18)';
+    cx.beginPath(); cx.arc((rx0+rx1)/2, ry, 46, 0, 7); cx.fill();
+  }
+  // ammeter kanan bawah
+  cx.strokeStyle='#e2e8f0'; cx.lineWidth=3;
+  cx.beginPath(); cx.arc(X1, Y1-70, 26, 0, 7); cx.stroke();
+  cx.fillStyle='#e2e8f0'; cx.font='bold 18px sans-serif';
+  cx.fillText('A', X1-7, Y1-63);
+  cx.font='13px sans-serif'; cx.fillStyle='#94a3b8';
+  cx.fillText(fmt(I)+' A', X1-24, Y1-24);
+  // elektron
+  const speed = Math.min(I/8, 1.2) * 0.25 + (I>0.001?0.002:0);
+  cx.fillStyle='#fbbf24';
+  for (const d of dots){
+    d.t = (d.t + speed*0.016*8) % 1;
+    const [x,y] = pathPoint(d.t);
+    cx.beginPath(); cx.arc(x,y,5,0,7); cx.fill();
+  }
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>

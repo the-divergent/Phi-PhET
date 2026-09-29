@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kit Rangkaian DC — Divergent Lab</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --acc:#fbbf24; --txt:#e2e8f0; --mut:#94a3b8; --line:#334155; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,sans-serif; padding:16px; max-width:780px; margin:0 auto; }
+  .top a { color:var(--acc); text-decoration:none; font-size:.9rem; }
+  h1 { font-size:1.35rem; margin:8px 0; } h1 span { color:var(--acc); }
+  .hint { font-size:.82rem; color:var(--mut); line-height:1.6; margin:6px 0 12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
+  canvas { width:100%; border-radius:8px; background:#0b1220; display:block; touch-action:none; }
+  .tools { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+  .tools button { background:#0f172a; color:var(--txt); border:1px solid var(--line); border-radius:20px; padding:8px 14px; font-size:.85rem; cursor:pointer; }
+  .tools button.on { background:var(--acc); color:#111; border-color:var(--acc); font-weight:700; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+  .row button { flex:1; min-width:120px; padding:9px; border-radius:8px; border:1px solid var(--line); background:#0f172a; color:var(--txt); cursor:pointer; font-size:.82rem; }
+  .row button:hover { border-color:var(--acc); }
+  #panel { background:#0f172a; border:1px dashed #475569; border-radius:8px; padding:12px; margin-top:10px; }
+  #panel h3 { font-size:.95rem; margin-bottom:6px; }
+  #panel .kv { display:flex; justify-content:space-between; font-size:.85rem; color:var(--mut); margin:4px 0; }
+  #panel .kv b { color:var(--acc); }
+  #panel input[type=range]{ width:100%; accent-color:var(--acc); margin:6px 0; }
+  #panel .prow { display:flex; gap:8px; margin-top:8px; }
+  #panel .prow button { flex:1; padding:9px; border-radius:8px; border:none; cursor:pointer; font-weight:700; }
+  #bDel { background:#7f1d1d; color:#fff; } #bTog { background:#1e40af; color:#fff; }
+  #msg { font-size:.85rem; margin-top:10px; min-height:1.4em; color:var(--acc); }
+</style>
+</head>
+<body>
+<div class="top"><a href="../../index.html">← Semua simulasi</a></div>
+<h1>Kit Rangkaian <span>DC</span></h1>
+<p class="hint">Rakit rangkaian listrik sendiri di atas grid. Arus tiap komponen dihitung otomatis dengan analisis nodal — persis seperti software simulasi beneran.</p>
+<div class="card"><canvas id="cv" width="644" height="414"></canvas></div>
+<div class="card">
+  <div class="tools" id="tools">
+    <button data-t="kursor" class="on">👆 Kursor</button>
+    <button data-t="baterai">🔋 Baterai</button>
+    <button data-t="resistor">〰️ Resistor</button>
+    <button data-t="lampu">💡 Lampu</button>
+    <button data-t="kabel">➖ Kabel</button>
+    <button data-t="saklar">🔀 Saklar</button>
+  </div>
+  <div class="row">
+    <button id="bPutar">🔄 Orientasi: Horizontal</button>
+    <button id="bContoh">✨ Contoh rangkaian</button>
+    <button id="bClear">🗑 Hapus semua</button>
+  </div>
+  <p class="hint" id="hintTool">Mode kursor: ketuk komponen untuk memilih / mengubah nilai.</p>
+  <div id="panel" style="display:none">
+    <h3 id="pNama">Resistor</h3>
+    <div id="pSliderWrap"><input type="range" id="pVal"><div class="kv"><span>Nilai</span><b id="pValLab"></b></div></div>
+    <div class="kv"><span>Arus lewat</span><b id="pI">-</b></div>
+    <div class="kv"><span>Tegangan jepit</span><b id="pV">-</b></div>
+    <div class="prow">
+      <button id="bTog" style="display:none">Buka/Tutup</button>
+      <button id="bDel">Hapus</button>
+    </div>
+  </div>
+  <p id="msg"></p>
+</div>
+<script>
+// ===== Konfigurasi grid =====
+const COLS=14, ROWS=9, CELL=46;
+const cv=document.getElementById('cv'), cx=cv.getContext('2d');
+const TYPES={
+  baterai:{nama:'🔋 Baterai', def:9, min:1, max:24, step:0.5, unit:'V'},
+  resistor:{nama:'〰️ Resistor', def:10, min:1, max:1000, step:1, unit:'Ω'},
+  lampu:{nama:'💡 Lampu', def:10, min:1, max:100, step:1, unit:'Ω'},
+  kabel:{nama:'➖ Kabel', fixed:true},
+  saklar:{nama:'🔀 Saklar', fixed:true},
+};
+let comps=[], nextId=1, selId=null;
+let tool='kursor', orient='h', dragging=false, ghost=null;
+let sol={vmap:new Map(), cur:new Map(), msg:''};
+
+const pk=(x,y)=>x+','+y;
+function segKey(x1,y1,x2,y2){
+  if(x1>x2||(x1===x2&&y1>y2)){const t1=x1,t2=y1;x1=x2;y1=y2;x2=t1;y2=t2;}
+  return x1+','+y1+','+x2+','+y2;
+}
+const usedSegs=()=>new Set(comps.map(c=>segKey(c.x1,c.y1,c.x2,c.y2)));
+function validSeg(x1,y1,x2,y2){
+  for(const [x,y] of [[x1,y1],[x2,y2]])
+    if(x<0||y<0||x>COLS||y>ROWS) return false;
+  if(Math.abs(x1-x2)+Math.abs(y1-y2)!==2) return false;
+  if((x1!==x2&&y1!==y2)) return false;
+  return !usedSegs().has(segKey(x1,y1,x2,y2));
+}
+function ghostAt(px,py){
+  const gx=Math.round(px/CELL), gy=Math.round(py/CELL);
+  let s;
+  if(orient==='h') s={x1:gx-1,y1:gy,x2:gx+1,y2:gy};
+  else s={x1:gx,y1:gy-1,x2:gx,y2:gy+1};
+  s.ok=validSeg(s.x1,s.y1,s.x2,s.y2);
+  return s;
+}
+function evPos(e){
+  const r=cv.getBoundingClientRect();
+  return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height];
+}
+function distPtSeg(px,py,ax,ay,bx,by){
+  const dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy;
+  let t=L2?((px-ax)*dx+(py-ay)*dy)/L2:0; t=Math.max(0,Math.min(1,t));
+  const qx=ax+t*dx-px,qy=ay+t*dy-py; return Math.hypot(qx,qy);
+}
+function hitComp(px,py){
+  let best=null,bd=16;
+  for(const c of comps){
+    const d=distPtSeg(px,py,c.x1*CELL,c.y1*CELL,c.x2*CELL,c.y2*CELL);
+    if(d<bd){bd=d;best=c;}
+  }
+  return best;
+}
+
+// ===== Solver: Modified Nodal Analysis (DC) =====
+function gauss(A,n){
+  for(let c=0;c<n;c++){
+    let p=c;
+    for(let r=c+1;r<n;r++) if(Math.abs(A[r][c])>Math.abs(A[p][c])) p=r;
+    if(Math.abs(A[p][c])<1e-9) return null;
+    const tmp=A[c];A[c]=A[p];A[p]=tmp;
+    for(let r=0;r<n;r++){
+      if(r===c)continue;
+      const f=A[r][c]/A[c][c];
+      for(let k=c;k<=n;k++)A[r][k]-=f*A[c][k];
+    }
+  }
+  return A.map((row,i)=>row[n]/A[i][i]);
+}
+function solveCircuit(list){
+  const out={vmap:new Map(),cur:new Map(),msg:''};
+  const idx=new Map(),nodes=[];
+  const nid=(x,y)=>{const k=pk(x,y);if(!idx.has(k)){idx.set(k,nodes.length);nodes.push(k);}return idx.get(k);};
+  const res=[],vs=[];
+  for(const c of list){
+    if(c.type==='saklar'&&!c.closed)continue;
+    const a=nid(c.x1,c.y1),b=nid(c.x2,c.y2);
+    if(c.type==='baterai')vs.push({p:b,n:a,v:c.val,id:c.id});
+    else{const r=(c.type==='kabel'||c.type==='saklar')?0.01:c.val;res.push({a,b,g:1/r,id:c.id});}
+  }
+  if(!vs.length){out.msg='Tambahkan baterai untuk menghidupkan rangkaian.';return out;}
+  const g0=vs[0].n;
+  const adj=nodes.map(()=>[]);
+  const link=(a,b,e)=>{adj[a].push({to:b});adj[b].push({to:a});};
+  res.forEach(e=>link(e.a,e.b));vs.forEach(e=>link(e.p,e.n));
+  const seen=new Set([g0]),st=[g0];
+  while(st.length){const u=st.pop();for(const e of adj[u])if(!seen.has(e.to)){seen.add(e.to);st.push(e.to);}}
+  const resF=res.filter(e=>seen.has(e.a)&&seen.has(e.b));
+  const vsF=vs.filter(e=>seen.has(e.p)&&seen.has(e.n));
+  const mp=new Map();mp.set(g0,0);let nn=1;
+  for(const n of seen)if(n!==g0)mp.set(n,nn++);
+  const N=nn,M=vsF.length,K=(N-1)+M;
+  const A=Array.from({length:K},()=>new Array(K+1).fill(0));
+  const vi=i=>mp.get(i)-1;
+  for(const e of resF){
+    const{a,b,g}=e;
+    if(a!==g0)A[vi(a)][vi(a)]+=g;
+    if(b!==g0)A[vi(b)][vi(b)]+=g;
+    if(a!==g0&&b!==g0){A[vi(a)][vi(b)]-=g;A[vi(b)][vi(a)]-=g;}
+  }
+  vsF.forEach((e,k)=>{
+    const r=(N-1)+k;
+    if(e.p!==g0){A[vi(e.p)][r]+=1;A[r][vi(e.p)]+=1;}
+    if(e.n!==g0){A[vi(e.n)][r]-=1;A[r][vi(e.n)]-=1;}
+    A[r][K]=e.v;
+  });
+  const x=gauss(A,K);
+  if(!x){out.msg='Rangkaian tidak valid — periksa koneksi antar komponen.';return out;}
+  for(const [k,i] of idx)out.vmap.set(k,i===g0?0:x[vi(i)]);
+  for(const e of resF){
+    const va=e.a===g0?0:x[vi(e.a)],vb=e.b===g0?0:x[vi(e.b)];
+    out.cur.set(e.id,e.g*(va-vb));
+  }
+  vsF.forEach((e,k)=>out.cur.set(e.id,-x[(N-1)+k]));
+  for(const e of vsF)if(Math.abs(out.cur.get(e.id))>30){out.msg='⚠️ Hubung singkat! Arus baterai sangat besar.';break;}
+  return out;
+}
+function refresh(){ sol=solveCircuit(comps); updatePanel(); draw(); }
+
+// ===== Gambar =====
+function drawComp(c, t){
+  const ax=c.x1*CELL,ay=c.y1*CELL,bx=c.x2*CELL,by=c.y2*CELL;
+  const mx=(ax+bx)/2,my=(ay+by)/2;
+  const isSel=c.id===selId;
+  cx.lineWidth=isSel?7:4;
+  cx.strokeStyle=isSel?'#fbbf24':'#cbd5e1';
+  const ux=(bx-ax)/2,uy=(by-ay)/2,L=Math.hypot(ux,uy),nx=-uy/L,ny=ux/L;
+  const P=(c,t)=>{
+    const px=ax+ux*2*t, py=ay+uy*2*t;
+    return [px,py];
+  };
+  if(c.type==='kabel'){cx.beginPath();cx.moveTo(ax,ay);cx.lineTo(bx,by);cx.stroke();}
+  else if(c.type==='resistor'){
+    cx.beginPath();cx.moveTo(ax,ay);
+    for(let i=0;i<6;i++){const[a1,b1]=P((i+0.5)/6),[a2,b2]=P((i+1)/6);
+      cx.lineTo(a1+nx*(i%2?14:-14),b1+ny*(i%2?14:-14));}
+    cx.lineTo(bx,by);cx.stroke();
+    cx.fillStyle='#94a3b8';cx.font='12px sans-serif';
+    cx.fillText(c.val+' Ω',mx-16,my+30);
+  }
+  else if(c.type==='lampu'){
+    const I=Math.abs(sol.cur.get(c.id)||0),Pw=I*I*c.val;
+    const gl=Math.min(Pw/4,1);
+    if(gl>0.02){cx.fillStyle=`rgba(251,191,36,${0.25*gl})`;cx.beginPath();cx.arc(mx,my,30,0,7);cx.fill();}
+    cx.beginPath();
+    const ex=(bx-ax)/L,ey=(by-ay)/L;
+    cx.moveTo(ax,ay);cx.lineTo(mx-15*ex,my-15*ey);
+    cx.moveTo(mx+15*ex,my+15*ey);cx.lineTo(bx,by);cx.stroke();
+    cx.beginPath();cx.arc(mx,my,15,0,7);cx.stroke();
+    cx.beginPath();cx.moveTo(mx-8,my-8);cx.lineTo(mx+8,my+8);cx.moveTo(mx+8,my-8);cx.lineTo(mx-8,my+8);cx.stroke();
+    cx.fillStyle='#94a3b8';cx.font='12px sans-serif';
+    cx.fillText(c.val+' Ω',mx-16,my+34);
+  }
+  else if(c.type==='baterai'){
+    cx.beginPath();cx.moveTo(ax,ay);cx.lineTo(ax+ux*0.75,ay+uy*0.75);cx.stroke();
+    cx.beginPath();cx.moveTo(bx-ux*0.75,by-uy*0.75);cx.lineTo(bx,by);cx.stroke();
+    // pelat - (pendek, tebal) di sisi a ; pelat + (panjang, tipis) di sisi b
+    const p1x=ax+ux*0.75,p1y=ay+uy*0.75,p2x=bx-ux*0.75,p2y=by-uy*0.75;
+    cx.lineWidth=isSel?9:7;cx.beginPath();
+    cx.moveTo(p1x+nx*9,p1y+ny*9);cx.lineTo(p1x-nx*9,p1y-ny*9);cx.stroke();
+    cx.lineWidth=isSel?5:3;cx.beginPath();
+    cx.moveTo(p2x+nx*17,p2y+ny*17);cx.lineTo(p2x-nx*17,p2y-ny*17);cx.stroke();
+    cx.fillStyle='#94a3b8';cx.font='12px sans-serif';
+    cx.fillText(c.val+' V',mx-12,my+30);
+  }
+  else if(c.type==='saklar'){
+    cx.beginPath();cx.arc(ax,ay,4,0,7);cx.fillStyle='#cbd5e1';cx.fill();
+    cx.beginPath();cx.arc(bx,by,4,0,7);cx.fill();
+    const ex=(bx-ax)/L,ey=(by-ay)/L;
+    cx.beginPath();cx.moveTo(ax,ay);
+    if(c.closed)cx.lineTo(bx,by);
+    else{const ang=Math.atan2(ey,ex)-0.6;cx.lineTo(ax+Math.cos(ang)*L*2,ay+Math.sin(ang)*L*2);}
+    cx.stroke();
+    cx.fillStyle=c.closed?'#4ade80':'#f87171';cx.font='11px sans-serif';
+    cx.fillText(c.closed?'tutup':'buka',mx-14,my-12);
+  }
+  // titik arus
+  const I=sol.cur.get(c.id)||0;
+  if(Math.abs(I)>1e-4){
+    const dir=I>0?1:-1,n=Math.min(5,1+Math.floor(Math.abs(I)*4));
+    c.ph=((c.ph||0)+dir*0.35/60*(0.4+Math.min(Math.abs(I),6)*0.35))%1;
+    const ph=(c.ph+1)%1;
+    cx.fillStyle='#fbbf24';
+    for(let k=0;k<n;k++){
+      const tt=(ph+k/n)%1,dx=ax+(bx-ax)*tt,dy=ay+(by-ay)*tt;
+      cx.beginPath();cx.arc(dx,dy,4,0,7);cx.fill();
+    }
+  }
+}
+function draw(){
+  cx.clearRect(0,0,cv.width,cv.height);
+  cx.fillStyle='#1e293b';
+  for(let x=0;x<=COLS;x++)for(let y=0;y<=ROWS;y++){
+    cx.beginPath();cx.arc(x*CELL,y*CELL,2,0,7);cx.fill();
+  }
+  for(const c of comps)drawComp(c);
+  if(drag&&ghost){
+    const s=ghost;
+    cx.setLineDash([8,6]);cx.lineWidth=4;
+    cx.strokeStyle=s.ok?'#4ade80':'#f87171';
+    cx.beginPath();cx.moveTo(s.x1*CELL,s.y1*CELL);cx.lineTo(s.x2*CELL,s.y2*CELL);cx.stroke();
+    cx.setLineDash([]);
+  }
+  const n=comps.length;
+  document.getElementById('msg').textContent =
+    sol.msg || (n? `Rangkaian OK — ${n} komponen.` : 'Kanvs kosong. Pilih komponen lalu seret di kanvas.');
+}
+
+// ===== Interaksi =====
+const toolsEl=document.getElementById('tools');
+toolsEl.addEventListener('pointerdown',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  tool=b.dataset.t;
+  [...toolsEl.children].forEach(x=>x.classList.toggle('on',x===b));
+  document.getElementById('hintTool').textContent =
+    tool==='kursor' ? 'Mode kursor: ketuk komponen untuk memilih / mengubah nilai.'
+    : `Mode pasang ${TYPES[tool].nama}: seret di kanvas untuk menaruh (ketuk tombol komponen lagi untuk batal).`;
+});
+document.getElementById('bPutar').onclick=e=>{
+  orient=orient==='h'?'v':'h';
+  e.target.textContent='🔄 Orientasi: '+(orient==='h'?'Horizontal':'Vertikal');
+};
+cv.addEventListener('pointerdown',e=>{
+  const[px,py]=evPos(e);
+  if(tool==='kursor'){
+    const c=hitComp(px,py);
+    selId=c?c.id:null; refresh();
+  }else{
+    dragging=true; ghost=ghostAt(px,py); draw();
+    cv.setPointerCapture(e.pointerId);
+  }
+});
+cv.addEventListener('pointermove',e=>{
+  if(!dragging)return;
+  const[px,py]=evPos(e); ghost=ghostAt(px,py); draw();
+});
+cv.addEventListener('pointerup',e=>{
+  if(!dragging)return;
+  dragging=false;
+  if(ghost&&ghost.ok){
+    const T=TYPES[tool];
+    comps.push({id:nextId++,type:tool,x1:ghost.x1,y1:ghost.y1,x2:ghost.x2,y2:ghost.y2,
+      val:T.def||0.01,closed:tool==='saklar'?false:undefined,ph:0});
+    selId=nextId-1;
+  }
+  ghost=null; refresh();
+});
+document.getElementById('bClear').onclick=()=>{comps=[];selId=null;refresh();};
+document.getElementById('bContoh').onclick=()=>{
+  comps=[
+    {id:nextId++,type:'baterai',x1:4,y1:6,x2:6,y2:6,val:9,ph:0},
+    {id:nextId++,type:'kabel',x1:6,y1:6,x2:6,y2:4,val:0.01,ph:0},
+    {id:nextId++,type:'resistor',x1:6,y1:4,x2:6,y2:2,val:10,ph:0},
+    {id:nextId++,type:'kabel',x1:6,y1:2,x2:4,y2:2,val:0.01,ph:0},
+    {id:nextId++,type:'lampu',x1:4,y1:2,x2:2,y2:2,val:10,ph:0},
+    {id:nextId++,type:'kabel',x1:2,y1:2,x2:2,y2:4,val:0.01,ph:0},
+    {id:nextId++,type:'kabel',x1:2,y1:4,x2:2,y2:6,val:0.01,ph:0},
+    {id:nextId++,type:'kabel',x1:2,y1:6,x2:4,y2:6,val:0.01,ph:0},
+  ];
+  selId=null; refresh();
+};
+document.getElementById('bDel').onclick=()=>{
+  comps=comps.filter(c=>c.id!==selId); selId=null; refresh();
+};
+document.getElementById('bTog').onclick=()=>{
+  const c=comps.find(c=>c.id===selId);
+  if(c&&c.type==='saklar'){c.closed=!c.closed;refresh();}
+};
+document.getElementById('pVal').oninput=e=>{
+  const c=comps.find(c=>c.id===selId); if(!c)return;
+  c.val=parseFloat(e.target.value); refresh();
+};
+document.addEventListener('keydown',e=>{
+  if((e.key==='Delete'||e.key==='Backspace')&&selId){
+    comps=comps.filter(c=>c.id!==selId); selId=null; refresh();
+  }
+});
+function updatePanel(){
+  const c=comps.find(c=>c.id===selId);
+  const p=document.getElementById('panel');
+  if(!c){p.style.display='none';return;}
+  p.style.display='block';
+  const T=TYPES[c.type];
+  document.getElementById('pNama').textContent=T.nama;
+  const sw=document.getElementById('pSliderWrap');
+  if(T.fixed){sw.style.display='none';}
+  else{
+    sw.style.display='block';
+    const s=document.getElementById('pVal');
+    s.min=T.min;s.max=T.max;s.step=T.step;s.value=c.val;
+    document.getElementById('pValLab').textContent=c.val+' '+T.unit;
+  }
+  const I=sol.cur.get(c.id);
+  const va=sol.vmap.get(pk(c.x1,c.y1)),vb=sol.vmap.get(pk(c.x2,c.y2));
+  document.getElementById('pI').textContent=(I===undefined||va===undefined)?'-':Math.abs(I).toFixed(3)+' A';
+  document.getElementById('pV').textContent=(va===undefined||vb===undefined)?'-':Math.abs(va-vb).toFixed(2)+' V';
+  const bt=document.getElementById('bTog');
+  if(c.type==='saklar'){bt.style.display='block';bt.textContent=c.closed?'🔓 Buka saklar':'🔒 Tutup saklar';}
+  else bt.style.display='none';
+}
+refresh();
+</script>
+</body>
+</html>
