@@ -60,12 +60,12 @@
     <button id="bContoh">✨ Contoh rangkaian</button>
     <button id="bClear">🗑 Hapus semua</button>
   </div>
-  <p class="hint" id="hintTool">Mode kursor: ketuk komponen untuk memilih / mengubah nilai.</p>
+  <p class="hint" id="hintTool">Mode kursor: ketuk untuk memilih • tahan &amp; seret untuk memindahkan • tombol 🔄 untuk memutar 90°.</p>
   <div id="panel" style="display:none">
     <h3 id="pNama">Resistor</h3>
     <div id="pSliderWrap"><input type="range" id="pVal"><div class="kv"><span>Nilai</span><b id="pValLab"></b></div></div>
     <div class="kv"><span>Arus lewat</span><b id="pI">-</b></div>
-    <div class="kv"><span>Tegangan jepit</span><b id="pV">-</b></div>
+    <div class="kv"><span>Tegangan komponen</span><b id="pV">-</b></div>
     <div class="prow">
       <button id="bRot">🔄 Putar 90°</button>
       <button id="bTog" style="display:none">Buka/Tutup</button>
@@ -87,30 +87,32 @@ const TYPES={
 };
 let comps=[], nextId=1, selId=null;
 let tool='kursor', orient='h', dragging=false, ghost=null;
+let pDown=null, movingId=null, moveGhost=null;
 let sol={vmap:new Map(), cur:new Map(), msg:''};
-let playing=true, flashMsg='', lastT=performance.now();
+let playing=true, flashMsg='', lastT=performance.now(), simT=0;
 
 const pk=(x,y)=>x+','+y;
 function segKey(x1,y1,x2,y2){
   if(x1>x2||(x1===x2&&y1>y2)){const t1=x1,t2=y1;x1=x2;y1=y2;x2=t1;y2=t2;}
   return x1+','+y1+','+x2+','+y2;
 }
-const usedSegs=()=>new Set(comps.map(c=>segKey(c.x1,c.y1,c.x2,c.y2)));
-function validSeg(x1,y1,x2,y2){
+function validSeg(x1,y1,x2,y2,excl){
   for(const [x,y] of [[x1,y1],[x2,y2]])
     if(x<0||y<0||x>COLS||y>ROWS) return false;
   if(Math.abs(x1-x2)+Math.abs(y1-y2)!==2) return false;
   if((x1!==x2&&y1!==y2)) return false;
-  return !usedSegs().has(segKey(x1,y1,x2,y2));
+  const set=new Set(comps.filter(c=>c.id!==excl).map(c=>segKey(c.x1,c.y1,c.x2,c.y2)));
+  return !set.has(segKey(x1,y1,x2,y2));
 }
-function ghostAt(px,py){
+function ghostAtO(px,py,o,excl){
   const gx=Math.round(px/CELL), gy=Math.round(py/CELL);
   let s;
-  if(orient==='h') s={x1:gx-1,y1:gy,x2:gx+1,y2:gy};
+  if(o==='h') s={x1:gx-1,y1:gy,x2:gx+1,y2:gy};
   else s={x1:gx,y1:gy-1,x2:gx,y2:gy+1};
-  s.ok=validSeg(s.x1,s.y1,s.x2,s.y2);
+  s.ok=validSeg(s.x1,s.y1,s.x2,s.y2,excl);
   return s;
 }
+function ghostAt(px,py){return ghostAtO(px,py,orient,undefined);}
 function evPos(e){
   const r=cv.getBoundingClientRect();
   return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height];
@@ -214,15 +216,47 @@ function drawComp(c, t){
     cx.lineTo(bx,by);cx.stroke();
     cx.fillStyle='#94a3b8';cx.font='12px sans-serif';
     cx.fillText(c.val+' Ω',mx-16,my+30);
+    // animasi panas resistor saat daya besar
+    const Ir=Math.abs(sol.cur.get(c.id)||0), Pr=Ir*Ir*c.val;
+    if(Pr>15&&playing){
+      const hg=Math.min(Pr/80,1);
+      cx.fillStyle=`rgba(248,113,113,${(0.22*hg).toFixed(2)})`;
+      cx.beginPath();cx.arc(mx,my,36,0,7);cx.fill();
+      cx.strokeStyle=`rgba(248,113,113,${(0.45*hg+0.25).toFixed(2)})`;cx.lineWidth=2;
+      for(let w=-1;w<=1;w++){
+        const wx=mx+w*24;
+        cx.beginPath();cx.moveTo(wx,my-24);
+        cx.quadraticCurveTo(wx+5*Math.sin(simT*6+w*2),my-34,wx+3*Math.sin(simT*6+w*2+1),my-44);
+        cx.stroke();
+      }
+    }
   }
   else if(c.type==='lampu'){
     const I=Math.abs(sol.cur.get(c.id)||0),Pw=I*I*c.val;
-    const gl=Math.min(Pw/4,1);
-    if(gl>0.02){cx.fillStyle=`rgba(251,191,36,${0.25*gl})`;cx.beginPath();cx.arc(mx,my,30,0,7);cx.fill();}
-    cx.beginPath();
+    const gl=Math.min(Pw/3,1);
     const ex=(bx-ax)/L,ey=(by-ay)/L;
+    cx.lineWidth=isSel?7:4;cx.strokeStyle=isSel?'#fbbf24':'#cbd5e1';
+    cx.beginPath();
     cx.moveTo(ax,ay);cx.lineTo(mx-15*ex,my-15*ey);
     cx.moveTo(mx+15*ex,my+15*ey);cx.lineTo(bx,by);cx.stroke();
+    // animasi lampu: menyala terang / redup sesuai daya
+    if(gl>0.03){
+      cx.fillStyle=`rgba(253,224,71,${(0.92*gl).toFixed(2)})`;
+      cx.beginPath();cx.arc(mx,my,13,0,7);cx.fill();
+      cx.fillStyle=`rgba(251,191,36,${(0.22*gl).toFixed(2)})`;
+      cx.beginPath();cx.arc(mx,my,32,0,7);cx.fill();
+      if(gl>0.45&&playing){
+        cx.strokeStyle=`rgba(253,224,71,${(0.75*gl).toFixed(2)})`;cx.lineWidth=2.5;
+        for(let q=0;q<8;q++){
+          const an=q*Math.PI/4+simT*0.9;
+          cx.beginPath();
+          cx.moveTo(mx+Math.cos(an)*20,my+Math.sin(an)*20);
+          cx.lineTo(mx+Math.cos(an)*28,my+Math.sin(an)*28);
+          cx.stroke();
+        }
+      }
+    }
+    cx.strokeStyle=isSel?'#fbbf24':'#cbd5e1';cx.lineWidth=isSel?5:3;
     cx.beginPath();cx.arc(mx,my,15,0,7);cx.stroke();
     cx.beginPath();cx.moveTo(mx-8,my-8);cx.lineTo(mx+8,my+8);cx.moveTo(mx+8,my-8);cx.lineTo(mx-8,my+8);cx.stroke();
     cx.fillStyle='#94a3b8';cx.font='12px sans-serif';
@@ -239,14 +273,24 @@ function drawComp(c, t){
     cx.moveTo(p2x+nx*17,p2y+ny*17);cx.lineTo(p2x-nx*17,p2y-ny*17);cx.stroke();
     cx.fillStyle='#94a3b8';cx.font='12px sans-serif';
     cx.fillText(c.val+' V',mx-12,my+30);
+    // animasi baterai: gelombang energi saat menyuplai arus
+    const Ib=Math.abs(sol.cur.get(c.id)||0);
+    if(Ib>0.05&&playing){
+      for(let k=0;k<2;k++){
+        const cyc=(simT*36+k*26)%52, al=1-cyc/52;
+        cx.strokeStyle=`rgba(251,191,36,${(al*0.65).toFixed(2)})`;cx.lineWidth=2.5;
+        cx.beginPath();cx.arc(mx,my,20+cyc,0,7);cx.stroke();
+      }
+    }
   }
   else if(c.type==='saklar'){
+    if(c.lever===undefined)c.lever=c.closed?0:1;
     cx.beginPath();cx.arc(ax,ay,4,0,7);cx.fillStyle='#cbd5e1';cx.fill();
     cx.beginPath();cx.arc(bx,by,4,0,7);cx.fill();
     const ex=(bx-ax)/L,ey=(by-ay)/L;
+    const ang=Math.atan2(ey,ex)-0.6*c.lever;   // tuas beranimasi mulus
     cx.beginPath();cx.moveTo(ax,ay);
-    if(c.closed)cx.lineTo(bx,by);
-    else{const ang=Math.atan2(ey,ex)-0.6;cx.lineTo(ax+Math.cos(ang)*L*2,ay+Math.sin(ang)*L*2);}
+    cx.lineTo(ax+Math.cos(ang)*L*2,ay+Math.sin(ang)*L*2);
     cx.stroke();
     cx.fillStyle=c.closed?'#4ade80':'#f87171';cx.font='11px sans-serif';
     cx.fillText(c.closed?'tutup':'buka',mx-14,my-12);
@@ -269,12 +313,16 @@ function draw(){
   for(let x=0;x<=COLS;x++)for(let y=0;y<=ROWS;y++){
     cx.beginPath();cx.arc(x*CELL,y*CELL,2,0,7);cx.fill();
   }
-  for(const c of comps)drawComp(c);
-  if(drag&&ghost){
-    const s=ghost;
+  for(const c of comps){
+    if(c.id===movingId)cx.globalAlpha=0.3;
+    drawComp(c);
+    cx.globalAlpha=1;
+  }
+  const gg=(drag&&ghost)||(movingId&&moveGhost);
+  if(gg){
     cx.setLineDash([8,6]);cx.lineWidth=4;
-    cx.strokeStyle=s.ok?'#4ade80':'#f87171';
-    cx.beginPath();cx.moveTo(s.x1*CELL,s.y1*CELL);cx.lineTo(s.x2*CELL,s.y2*CELL);cx.stroke();
+    cx.strokeStyle=gg.ok?'#4ade80':'#f87171';
+    cx.beginPath();cx.moveTo(gg.x1*CELL,gg.y1*CELL);cx.lineTo(gg.x2*CELL,gg.y2*CELL);cx.stroke();
     cx.setLineDash([]);
   }
   const n=comps.length;
@@ -289,7 +337,7 @@ toolsEl.addEventListener('pointerdown',e=>{
   tool=b.dataset.t;
   [...toolsEl.children].forEach(x=>x.classList.toggle('on',x===b));
   document.getElementById('hintTool').textContent =
-    tool==='kursor' ? 'Mode kursor: ketuk komponen untuk memilih / mengubah nilai.'
+    tool==='kursor' ? 'Mode kursor: ketuk untuk memilih • tahan & seret untuk memindahkan • 🔄 untuk memutar.'
     : `Mode pasang ${TYPES[tool].nama}: seret di kanvas untuk menaruh (ketuk tombol komponen lagi untuk batal).`;
 });
 document.getElementById('bPutar').onclick=e=>{
@@ -298,29 +346,52 @@ document.getElementById('bPutar').onclick=e=>{
 };
 cv.addEventListener('pointerdown',e=>{
   const[px,py]=evPos(e);
+  cv.setPointerCapture(e.pointerId);
   if(tool==='kursor'){
     const c=hitComp(px,py);
-    selId=c?c.id:null; refresh();
+    if(c) pDown={x:px,y:py,id:c.id};   // tahan = geser, lepas cepat = pilih
+    else { selId=null; refresh(); }
   }else{
     dragging=true; ghost=ghostAt(px,py); draw();
-    cv.setPointerCapture(e.pointerId);
   }
 });
 cv.addEventListener('pointermove',e=>{
-  if(!dragging)return;
-  const[px,py]=evPos(e); ghost=ghostAt(px,py); draw();
+  const[px,py]=evPos(e);
+  if(dragging){ ghost=ghostAt(px,py); draw(); return; }
+  if(pDown && Math.hypot(px-pDown.x,py-pDown.y)>8){
+    movingId=pDown.id; pDown=null;
+    const c=comps.find(c=>c.id===movingId);
+    moveGhost=ghostAtO(px,py, c.x1!==c.x2?'h':'v', movingId);
+    draw(); return;
+  }
+  if(movingId){
+    const c=comps.find(c=>c.id===movingId);
+    if(c) moveGhost=ghostAtO(px,py, c.x1!==c.x2?'h':'v', movingId);
+    draw();
+  }
 });
 cv.addEventListener('pointerup',e=>{
-  if(!dragging)return;
-  dragging=false;
-  if(ghost&&ghost.ok){
-    const T=TYPES[tool];
-    comps.push({id:nextId++,type:tool,x1:ghost.x1,y1:ghost.y1,x2:ghost.x2,y2:ghost.y2,
-      val:T.def||0.01,closed:tool==='saklar'?false:undefined,ph:0});
-    selId=nextId-1;
+  if(dragging){
+    dragging=false;
+    if(ghost&&ghost.ok){
+      const T=TYPES[tool];
+      comps.push({id:nextId++,type:tool,x1:ghost.x1,y1:ghost.y1,x2:ghost.x2,y2:ghost.y2,
+        val:T.def||0.01,closed:tool==='saklar'?false:undefined,ph:0});
+      selId=nextId-1;
+    }
+    ghost=null; refresh(); return;
   }
-  ghost=null; refresh();
+  if(movingId){
+    const c=comps.find(c=>c.id===movingId);
+    if(c&&moveGhost&&moveGhost.ok){
+      c.x1=moveGhost.x1;c.y1=moveGhost.y1;c.x2=moveGhost.x2;c.y2=moveGhost.y2;
+      selId=c.id;
+    } else if(c){ flashMsg='Tidak bisa dipindah ke sana.'; setTimeout(()=>{flashMsg='';},2200); }
+    movingId=null; moveGhost=null; refresh(); return;
+  }
+  if(pDown){ selId=pDown.id; pDown=null; refresh(); }
 });
+cv.addEventListener('pointercancel',()=>{pDown=null;movingId=null;moveGhost=null;dragging=false;ghost=null;draw();});
 document.getElementById('bClear').onclick=()=>{comps=[];selId=null;refresh();};
 document.getElementById('bContoh').onclick=()=>{
   comps=[
@@ -403,11 +474,17 @@ document.addEventListener('keydown',e=>{
 function loop(now){
   const dt=Math.min((now-lastT)/1000,.05);lastT=now;
   if(playing){
+    simT+=dt;
     for(const c of comps){
       const I=sol.cur.get(c.id)||0;
       if(Math.abs(I)>1e-4){
         const dir=I>0?1:-1;
         c.ph=((c.ph||0)+dir*dt*(0.5+Math.min(Math.abs(I),6)*0.6))%1;
+      }
+      if(c.type==='saklar'){
+        if(c.lever===undefined)c.lever=c.closed?0:1;
+        const tgt=c.closed?0:1;
+        c.lever+=(tgt-c.lever)*Math.min(1,dt*10);
       }
     }
     draw();

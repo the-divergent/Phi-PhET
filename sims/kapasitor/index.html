@@ -27,6 +27,14 @@
   .read div { background:#0f172a; border:1px dashed #475569; border-radius:8px; padding:8px 4px; text-align:center; }
   .read .v { font-size:1.05rem; color:var(--acc); font-weight:700; }
   .read .k { font-size:.68rem; color:var(--mut); margin-top:2px; }
+  #cellI { border-color:#38bdf8 !important; box-shadow:0 0 0 1px #38bdf8; }
+  #cellI .v { color:#38bdf8 !important; font-size:1.2rem; }
+  .arow { display:flex; align-items:center; gap:8px; margin:8px 0; font-size:.85rem; flex-wrap:wrap; }
+  .arow input[type=number] { width:70px; padding:7px; border-radius:6px; background:#0f172a; color:var(--txt); border:1px solid var(--line); }
+  .arow input[type=checkbox] { accent-color:var(--acc); }
+  .arow label { color:var(--txt); display:flex; align-items:center; gap:6px; min-width:118px; margin:0; }
+  .arow span { color:var(--mut); }
+  .arow select { padding:7px; border-radius:6px; background:#0f172a; color:var(--txt); border:1px solid var(--line); }
   .simbar { display:flex; gap:10px; align-items:center; }
   .simbar button { padding:9px 20px; border-radius:20px; border:1px solid var(--line); background:#0f172a; color:var(--txt); cursor:pointer; font-weight:700; font-size:.85rem; }
   .simbar button.on { background:var(--acc); color:#111; border-color:var(--acc); }
@@ -59,25 +67,42 @@
     <button class="go" id="bKosong">🔌 Kosongkan</button>
   </div>
   <div class="read">
-    <div><div class="v" id="oVc">0.00 V</div><div class="k">Vc</div></div>
-    <div><div class="v" id="oI">0.0 mA</div><div class="k">Arus</div></div>
+    <div><div class="v" id="oVc">0.00 V</div><div class="k">Tegangan Vc</div></div>
+    <div id="cellI"><div class="v" id="oI">0.0 mA</div><div class="k">Arus (I)</div></div>
     <div><div class="v" id="oQ">0.0 mC</div><div class="k">Muatan Q</div></div>
     <div><div class="v" id="oT">1.03 s</div><div class="k">τ = RC</div></div>
   </div>
   <p class="hint">Q = C × Vc &nbsp;•&nbsp; E = ½ × C × Vc² &nbsp;•&nbsp; Setelah 5τ kapasitor dianggap penuh/kosong.</p>
 </div>
+<div class="card">
+  <h3 style="font-size:.95rem;margin-bottom:4px">🤖 Simulasi Otomatis</h3>
+  <p class="hint" style="margin:0 0 4px">Parameter berubah sendiri dari nilai awal ke nilai akhir selama durasi — grafik merekam semuanya, kamu tinggal menonton.</p>
+  <div class="arow"><label><input type="checkbox" id="aUseV" checked> Tegangan</label><input type="number" id="aV0" value="3" min="1" max="24" step="0.5"><span>→</span><input type="number" id="aV1" value="12" min="1" max="24" step="0.5"><span>V</span></div>
+  <div class="arow"><label><input type="checkbox" id="aUseC" checked> Kapasitor</label><input type="number" id="aC0" value="1000" min="100" max="10000" step="100"><span>→</span><input type="number" id="aC1" value="4700" min="100" max="10000" step="100"><span>µF</span></div>
+  <div class="arow"><label><input type="checkbox" id="aUseR"> Resistor</label><input type="number" id="aR0" value="220" min="10" max="1000" step="10"><span>→</span><input type="number" id="aR1" value="470" min="10" max="1000" step="10"><span>Ω</span></div>
+  <div class="arow"><label>Durasi</label>
+    <select id="aDur"><option value="10">10 detik</option><option value="20" selected>20 detik</option><option value="30">30 detik</option></select>
+    <button class="go" id="bAutoRun" style="flex:1;background:var(--acc);color:#111">▶ Jalankan</button>
+    <button class="go" id="bAutoStop" style="flex:1;background:#334155;color:var(--txt)">⏹ Berhenti</button>
+  </div>
+  <div style="height:8px;background:#0f172a;border-radius:4px;margin-top:10px;overflow:hidden"><div id="autoBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--acc),var(--acc2))"></div></div>
+</div>
 <script>
 const cv=document.getElementById('cv'), cx=cv.getContext('2d');
 const gr=document.getElementById('gr'), gx=gr.getContext('2d');
 let Vs=9, R=220, C=4700e-6, Vc=0, mode='isi', speed=5, I=0, t=0;
-let playing=true;
+let playing=true, simT=0;
 let hist=[];
 const $=id=>document.getElementById(id);
 function upd(){
   Vs=+$('vR').value; R=+$('rR').value; C=+$('cR').value*1e-6; speed=+$('spd').value;
-  $('vL').textContent=Vs+' V'; $('rL').textContent=R+' Ω';
-  $('cL').textContent=$('cR').value+' µF';
-  $('oT').textContent=(R*$('cR').value*1e-6).toFixed(2)+' s';
+  labels();
+}
+function labels(){
+  $('vL').textContent=(Math.round(Vs*10)/10)+' V';
+  $('rL').textContent=Math.round(R)+' Ω';
+  $('cL').textContent=Math.round(C*1e6)+' µF';
+  $('oT').textContent=(R*C).toFixed(2)+' s';
 }
 ['vR','rR','cR','spd'].forEach(id=>$(id).oninput=upd); upd();
 $('bIsi').onclick=()=>{mode='isi';$('bIsi').classList.add('on');$('bKosong').classList.remove('on');};
@@ -92,11 +117,33 @@ function setPlaying(v){
 }
 bPlay.onclick=()=>setPlaying(!playing);
 $('bStop').onclick=()=>{Vc=0;t=0;hist=[];I=0;setPlaying(false);};
+// ===== Simulasi otomatis: parameter menyapu sendiri =====
+let auto={on:false,t:0,dur:20};
+$('bAutoRun').onclick=()=>{
+  auto={on:true,t:0,dur:+$('aDur').value,
+    useV:$('aUseV').checked,v0:+$('aV0').value,v1:+$('aV1').value,
+    useC:$('aUseC').checked,c0:+$('aC0').value,c1:+$('aC1').value,
+    useR:$('aUseR').checked,r0:+$('aR0').value,r1:+$('aR1').value};
+  $('bAutoRun').disabled=true;$('bAutoRun').style.opacity=.5;
+  setPlaying(true);
+};
+$('bAutoStop').onclick=()=>{auto.on=false;$('bAutoRun').disabled=false;$('bAutoRun').style.opacity=1;$('autoBar').style.width='0%';};
 
 let last=performance.now();
 function step(now){
   let dt=Math.min((now-last)/1000,0.1); last=now;
   if(playing){
+    simT+=dt;
+    if(auto.on){
+      auto.t+=dt;
+      const pr=Math.min(auto.t/auto.dur,1);
+      if(auto.useV){Vs=auto.v0+(auto.v1-auto.v0)*pr;$('vR').value=Vs;}
+      if(auto.useC){const cvv=auto.c0+(auto.c1-auto.c0)*pr;C=cvv*1e-6;$('cR').value=cvv;}
+      if(auto.useR){R=auto.r0+(auto.r1-auto.r0)*pr;$('rR').value=R;}
+      labels();
+      $('autoBar').style.width=(pr*100)+'%';
+      if(pr>=1){auto.on=false;$('bAutoRun').disabled=false;$('bAutoRun').style.opacity=1;}
+    }
     const tau=R*C, sdt=dt*speed;
     if(mode==='isi'){ const d=Vc+(Vs-Vc)*(1-Math.exp(-sdt/tau)); I=(Vs-Vc)/R; Vc=d; }
     else { Vc=Vc*Math.exp(-sdt/tau); I=-Vc/R; }
@@ -144,12 +191,27 @@ function draw(){
   cx.fillStyle= mode==='isi' ? '#fbbf24' : '#38bdf8';
   cx.font='bold 16px sans-serif';
   cx.fillText(mode==='isi'?'⚡ MENGISI':'🔌 MENGOSONGKAN', 20, 30);
-  // arus animasi sederhana: panah arah
-  if(Math.abs(I)>0.0005){
-    cx.fillStyle='#fbbf24';cx.font='15px sans-serif';
-    const dir = I>0 ? '→' : '←';
-    cx.fillText('I '+dir+' '+Math.abs(I*1000).toFixed(1)+' mA', x0+200, y1+34);
+  // visual arus: titik bergerak di kabel atas + badge I yang jelas
+  const aI=Math.abs(I);
+  if(aI>0.0002){
+    const spd=0.12+Math.min(aI*8,1.6);
+    cx.fillStyle='#fbbf24';
+    for(let k=0;k<6;k++){
+      const fr=((simT*spd)+(k/6))%1;
+      const dx=I>0 ? (x1-fr*(x1-x0)) : (x0+fr*(x1-x0));
+      cx.beginPath();cx.arc(dx,y0,4.5,0,7);cx.fill();
+    }
   }
+  const lbl='I = '+(aI*1000).toFixed(1)+' mA '+(I>=0?'←':'→');
+  cx.font='bold 15px sans-serif';
+  const tw=cx.measureText(lbl).width;
+  const bx0=(x0+x1)/2-tw/2-10, by0=y0-64;
+  cx.fillStyle='rgba(11,18,32,.92)';
+  cx.strokeStyle='#38bdf8';cx.lineWidth=2;
+  if(cx.roundRect){cx.beginPath();cx.roundRect(bx0,by0,tw+20,30,8);cx.fill();cx.stroke();}
+  else{cx.fillRect(bx0,by0,tw+20,30);cx.strokeRect(bx0,by0,tw+20,30);}
+  cx.fillStyle='#38bdf8';
+  cx.fillText(lbl,bx0+10,by0+20);
 }
 function drawGraph(){
   gx.clearRect(0,0,gr.width,gr.height);
