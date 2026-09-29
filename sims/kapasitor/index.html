@@ -193,7 +193,7 @@ function draw(){
   cx.strokeStyle='#e2e8f0'; cx.lineWidth=4;
   cx.beginPath();cx.moveTo(x0-14,y0+80);cx.lineTo(x0+14,y0+80);cx.stroke();
   cx.lineWidth=2;cx.beginPath();cx.moveTo(x0-22,y0+120);cx.lineTo(x0+22,y0+120);cx.stroke();
-  cx.fillStyle='#94a3b8';cx.font='15px sans-serif';cx.fillText(Vs+' V',x0-20,y0+150);
+  cx.fillStyle='#94a3b8';cx.font='15px sans-serif';cx.fillText((Math.round(Vs*10)/10)+' V',x0-20,y0+150);
   // denyut energi baterai saat menyuplai arus
   if(Math.abs(I)>0.0002&&playing){
     for(let k=0;k<2;k++){
