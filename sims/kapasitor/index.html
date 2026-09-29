@@ -9,7 +9,10 @@
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,sans-serif; padding:16px; max-width:780px; margin:0 auto; }
   .top { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .top { display:flex; justify-content:space-between; align-items:center; }
   .top a { color:var(--acc); text-decoration:none; font-size:.9rem; }
+  .mbtn { background:none; border:1px solid var(--line); border-radius:8px; color:var(--txt); font-size:1rem; padding:4px 10px; cursor:pointer; }
+  .mbtn:hover { border-color:var(--acc); }
   h1 { font-size:1.35rem; } h1 span { color:var(--acc); }
   .hint { font-size:.82rem; color:var(--mut); margin:6px 0 12px; line-height:1.6; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
@@ -43,7 +46,7 @@
 </style>
 </head>
 <body>
-<div class="top"><a href="../../index.html">← Semua simulasi</a></div>
+<div class="top"><a href="../../index.html">← Semua simulasi</a><button id="bMute" class="mbtn" title="Suara on/off">🔊</button></div>
 <h1>Lab <span>Kapasitor</span></h1>
 <p class="hint">Tekan <b>Isi daya</b> untuk mengisi kapasitor lewat resistor, atau <b>Kosongkan</b> untuk mengosongkannya. Amati muatan di pelat dan kurva Vc(t).</p>
 <div class="card simbar">
@@ -88,6 +91,29 @@
   <div style="height:8px;background:#0f172a;border-radius:4px;margin-top:10px;overflow:hidden"><div id="autoBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--acc),var(--acc2))"></div></div>
 </div>
 <script>
+// ===== Efek suara khas lab kapasitor (sweep elektronik) =====
+const Snd={
+  ctx:null,muted:localStorage.getItem('phiphet_mute')==='1',
+  ac(){if(!this.ctx)this.ctx=new(window.AudioContext||window.webkitAudioContext)();if(this.ctx.state==='suspended')this.ctx.resume();return this.ctx;},
+  tone(f,d,type,vol,slide){if(this.muted)return;try{
+    const c=this.ac(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();
+    o.type=type||'sine';o.frequency.setValueAtTime(f,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+d);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.12,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+d+.06);
+    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+d+.1);}catch(e){}},
+  blip(){this.tone(660,.07,'sine',.07);},
+  charge(){this.tone(170,.55,'sine',.09,540);},
+  discharge(){this.tone(540,.55,'sine',.09,150);},
+  tick(){this.noise(.03,.07,4200);},
+  noise(d,vol,fc){if(this.muted)return;try{
+    const c=this.ac(),t=c.currentTime,n=Math.max(1,(d*c.sampleRate)|0),b=c.createBuffer(1,n,c.sampleRate),ch=b.getChannelData(0);
+    for(let i=0;i<n;i++)ch[i]=(Math.random()*2-1)*(1-i/n);
+    const s=c.createBufferSource();s.buffer=b,f=c.createBiquadFilter(),g=c.createGain();
+    f.type='bandpass';f.frequency.value=fc||2500;
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.2,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    s.connect(f);f.connect(g);g.connect(c.destination);s.start(t);}catch(e){}},
+};
+function syncMuteBtn(){const b=document.getElementById('bMute');if(b)b.textContent=Snd.muted?'🔇':'🔊';}
 const cv=document.getElementById('cv'), cx=cv.getContext('2d');
 const gr=document.getElementById('gr'), gx=gr.getContext('2d');
 let Vs=9, R=220, C=4700e-6, Vc=0, mode='isi', speed=5, I=0, t=0;
@@ -104,9 +130,9 @@ function labels(){
   $('cL').textContent=Math.round(C*1e6)+' µF';
   $('oT').textContent=(R*C).toFixed(2)+' s';
 }
-['vR','rR','cR','spd'].forEach(id=>$(id).oninput=upd); upd();
-$('bIsi').onclick=()=>{mode='isi';$('bIsi').classList.add('on');$('bKosong').classList.remove('on');};
-$('bKosong').onclick=()=>{mode='kosong';$('bKosong').classList.add('on');$('bIsi').classList.remove('on');};
+['vR','rR','cR','spd'].forEach(id=>{$(id).oninput=upd;$(id).onchange=()=>Snd.tick();}); upd();
+$('bIsi').onclick=()=>{Snd.charge();mode='isi';$('bIsi').classList.add('on');$('bKosong').classList.remove('on');};
+$('bKosong').onclick=()=>{Snd.discharge();mode='kosong';$('bKosong').classList.add('on');$('bIsi').classList.remove('on');};
 // ===== Transport: play / pause / stop =====
 const bPlay=$('bPlay');
 function setPlaying(v){
@@ -115,8 +141,8 @@ function setPlaying(v){
   bPlay.classList.toggle('on',v);
   $('simState').textContent=v?'▶ Simulasi berjalan':'⏸ Dijeda';
 }
-bPlay.onclick=()=>setPlaying(!playing);
-$('bStop').onclick=()=>{Vc=0;t=0;hist=[];I=0;setPlaying(false);};
+bPlay.onclick=()=>{Snd.blip();setPlaying(!playing);};
+$('bStop').onclick=()=>{Snd.blip();Vc=0;t=0;hist=[];I=0;setPlaying(false);};
 // ===== Simulasi otomatis: parameter menyapu sendiri =====
 let auto={on:false,t:0,dur:20};
 $('bAutoRun').onclick=()=>{
@@ -125,9 +151,9 @@ $('bAutoRun').onclick=()=>{
     useC:$('aUseC').checked,c0:+$('aC0').value,c1:+$('aC1').value,
     useR:$('aUseR').checked,r0:+$('aR0').value,r1:+$('aR1').value};
   $('bAutoRun').disabled=true;$('bAutoRun').style.opacity=.5;
-  setPlaying(true);
+  Snd.charge();setPlaying(true);
 };
-$('bAutoStop').onclick=()=>{auto.on=false;$('bAutoRun').disabled=false;$('bAutoRun').style.opacity=1;$('autoBar').style.width='0%';};
+$('bAutoStop').onclick=()=>{Snd.blip();auto.on=false;$('bAutoRun').disabled=false;$('bAutoRun').style.opacity=1;$('autoBar').style.width='0%';};
 
 let last=performance.now();
 function step(now){
@@ -168,6 +194,14 @@ function draw(){
   cx.beginPath();cx.moveTo(x0-14,y0+80);cx.lineTo(x0+14,y0+80);cx.stroke();
   cx.lineWidth=2;cx.beginPath();cx.moveTo(x0-22,y0+120);cx.lineTo(x0+22,y0+120);cx.stroke();
   cx.fillStyle='#94a3b8';cx.font='15px sans-serif';cx.fillText(Vs+' V',x0-20,y0+150);
+  // denyut energi baterai saat menyuplai arus
+  if(Math.abs(I)>0.0002&&playing){
+    for(let k=0;k<2;k++){
+      const cyc=(simT*34+k*24)%48, al=1-cyc/48;
+      cx.strokeStyle=`rgba(251,191,36,${(al*0.55).toFixed(2)})`;cx.lineWidth=2;
+      cx.beginPath();cx.arc(x0,y0+100,22+cyc,0,7);cx.stroke();
+    }
+  }
   // resistor zigzag atas
   const rx0=x0+140,rx1=x1-140,n=5,seg=(rx1-rx0)/(n*2);
   cx.strokeStyle='#fbbf24';cx.lineWidth=4;cx.beginPath();cx.moveTo(rx0,y0);
@@ -180,6 +214,13 @@ function draw(){
   cx.beginPath();cx.moveTo(px-24,py0);cx.lineTo(px+24,py0);cx.stroke();
   cx.beginPath();cx.moveTo(px-24,py1);cx.lineTo(px+24,py1);cx.stroke();
   cx.fillStyle='#94a3b8';cx.font='15px sans-serif';cx.fillText($('cR').value+' µF',px-34,(py0+py1)/2+5);
+  // cahaya muatan di sekitar pelat ∝ |Vc|/Vs
+  const cg=Math.min(Math.abs(Vc)/Math.max(Vs,0.5),1);
+  if(cg>0.02){
+    cx.fillStyle=`rgba(56,189,248,${(0.16*cg).toFixed(2)})`;
+    cx.fillRect(px-52,py0-24,104,40);
+    cx.fillRect(px-52,py1-16,104,40);
+  }
   // muatan di pelat ∝ Vc
   const q=Math.round(Math.abs(Vc)/Math.max(Vs,0.01)*8), sgn=Vc>=0?1:-1;
   cx.font='bold 17px sans-serif';
@@ -231,6 +272,12 @@ function drawGraph(){
   gx.fillStyle='#94a3b8';gx.font='12px sans-serif';
   gx.fillText('Vc maks '+vMax.toFixed(1)+' V',8,16);
 }
+syncMuteBtn();
+document.getElementById('bMute').onclick=()=>{
+  Snd.muted=!Snd.muted;
+  localStorage.setItem('phiphet_mute',Snd.muted?'1':'0');
+  syncMuteBtn();Snd.blip();
+};
 requestAnimationFrame(step);
 </script>
 </body>

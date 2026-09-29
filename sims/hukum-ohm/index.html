@@ -8,7 +8,7 @@
   :root { --bg:#0f172a; --card:#1e293b; --acc:#fbbf24; --txt:#e2e8f0; --mut:#94a3b8; --line:#334155; }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,sans-serif; padding:16px; max-width:760px; margin:0 auto; }
-  .top { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .top { display:flex; justify-content:space-between; align-items:center; }
   .top a { color:var(--acc); text-decoration:none; font-size:.9rem; }
   h1 { font-size:1.35rem; } h1 span { color:var(--acc); }
   .wrap { display:grid; grid-template-columns:1fr; gap:14px; }
@@ -28,7 +28,7 @@
 </style>
 </head>
 <body>
-<div class="top"><a href="../../index.html">← Semua simulasi</a></div>
+<div class="top"><a href="../../index.html">← Semua simulasi</a><button id="bMute" class="mbtn" title="Suara on/off" style="background:none;border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:1rem;padding:4px 10px;cursor:pointer">🔊</button></div>
 <h1>Lab Hukum <span>Ohm</span></h1>
 <p class="hint">Ubah tegangan (V) dan hambatan (R), amati arus (I) yang mengalir. Berlaku: <b>I = V / R</b></p>
 <div class="wrap" style="margin-top:12px">
@@ -49,8 +49,29 @@
   </div>
 </div>
 <script>
+// ===== Efek suara khas lab Ohm (klik halus + peringatan) =====
+const Snd={
+  ctx:null,muted:localStorage.getItem('phiphet_mute')==='1',
+  ac(){if(!this.ctx)this.ctx=new(window.AudioContext||window.webkitAudioContext)();if(this.ctx.state==='suspended')this.ctx.resume();return this.ctx;},
+  tone(f,d,type,vol,slide){if(this.muted)return;try{
+    const c=this.ac(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();
+    o.type=type||'sine';o.frequency.setValueAtTime(f,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+d);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.12,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+d+.06);
+    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+d+.1);}catch(e){}},
+  noise(d,vol,fc){if(this.muted)return;try{
+    const c=this.ac(),t=c.currentTime,n=Math.max(1,(d*c.sampleRate)|0),b=c.createBuffer(1,n,c.sampleRate),ch=b.getChannelData(0);
+    for(let i=0;i<n;i++)ch[i]=(Math.random()*2-1)*(1-i/n);
+    const s=c.createBufferSource();s.buffer=b,f=c.createBiquadFilter(),g=c.createGain();
+    f.type='bandpass';f.frequency.value=fc||2500;
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.2,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    s.connect(f);f.connect(g);g.connect(c.destination);s.start(t);}catch(e){}},
+  tick(){this.noise(.03,.07,4200);},
+  zap(){this.noise(.16,.14,1100);this.tone(95,.18,'sawtooth',.1,45);},
+};
+function syncMuteBtn(){const b=document.getElementById('bMute');if(b)b.textContent=Snd.muted?'🔇':'🔊';}
 const cv = document.getElementById('cv'), cx = cv.getContext('2d');
-let V = 12, R = 10, dots = [];
+let V = 12, R = 10, dots = [], wasHot = false;
 for (let i = 0; i < 40; i++) dots.push({ t: Math.random() });
 
 const vRg = document.getElementById('vRg'), rRg = document.getElementById('rRg');
@@ -63,7 +84,9 @@ function upd(){
   document.getElementById('iVal').textContent = fmt(I) + ' A';
   document.getElementById('pVal').textContent = fmt(P,1) + ' W';
 }
-vRg.oninput = upd; rRg.oninput = upd; upd();
+vRg.oninput = upd; rRg.oninput = upd;
+vRg.onchange = ()=>Snd.tick(); rRg.onchange = ()=>Snd.tick();
+upd();
 
 // Jalur loop: persegi panjang (x0,y0)-(x1,y1)
 const X0=90, Y0=90, X1=550, Y1=310;
@@ -105,6 +128,17 @@ function draw(){
     cx.fillStyle='rgba(248,113,113,.18)';
     cx.beginPath(); cx.arc((rx0+rx1)/2, ry, 46, 0, 7); cx.fill();
   }
+  // peringatan daya berlebih: bingkai merah + bunyi zap sekali saat melewati ambang
+  const hot = P > 80;
+  if (hot){
+    const pu = 0.5+0.5*Math.sin(performance.now()/180);
+    cx.strokeStyle=`rgba(248,113,113,${(0.25+0.35*pu).toFixed(2)})`;
+    cx.lineWidth=7; cx.strokeRect(5,5,cv.width-10,cv.height-10);
+    cx.fillStyle=`rgba(248,113,113,${(0.7+0.3*pu).toFixed(2)})`; cx.font='bold 14px sans-serif';
+    cx.fillText('⚠ DAYA BERLEBIH', cv.width/2-72, 26);
+  }
+  if (hot && !wasHot) Snd.zap();
+  wasHot = hot;
   // ammeter kanan bawah
   cx.strokeStyle='#e2e8f0'; cx.lineWidth=3;
   cx.beginPath(); cx.arc(X1, Y1-70, 26, 0, 7); cx.stroke();
@@ -122,6 +156,12 @@ function draw(){
   }
   requestAnimationFrame(draw);
 }
+syncMuteBtn();
+document.getElementById('bMute').onclick=()=>{
+  Snd.muted=!Snd.muted;
+  localStorage.setItem('phiphet_mute',Snd.muted?'1':'0');
+  syncMuteBtn();
+};
 draw();
 </script>
 </body>

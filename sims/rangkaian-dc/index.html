@@ -8,7 +8,10 @@
   :root { --bg:#0f172a; --card:#1e293b; --acc:#fbbf24; --txt:#e2e8f0; --mut:#94a3b8; --line:#334155; }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,sans-serif; padding:16px; max-width:780px; margin:0 auto; }
+  .top { display:flex; justify-content:space-between; align-items:center; }
   .top a { color:var(--acc); text-decoration:none; font-size:.9rem; }
+  .mbtn { background:none; border:1px solid var(--line); border-radius:8px; color:var(--txt); font-size:1rem; padding:4px 10px; cursor:pointer; }
+  .mbtn:hover { border-color:var(--acc); }
   h1 { font-size:1.35rem; margin:8px 0; } h1 span { color:var(--acc); }
   .hint { font-size:.82rem; color:var(--mut); line-height:1.6; margin:6px 0 12px; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
@@ -37,7 +40,7 @@
 </style>
 </head>
 <body>
-<div class="top"><a href="../../index.html">← Semua simulasi</a></div>
+<div class="top"><a href="../../index.html">← Semua simulasi</a><button id="bMute" class="mbtn" title="Suara on/off">🔊</button></div>
 <h1>Kit Rangkaian <span>DC</span></h1>
 <p class="hint">Rakit rangkaian listrik sendiri di atas grid. Arus tiap komponen dihitung otomatis dengan analisis nodal — persis seperti software simulasi beneran.</p>
 <div class="card"><canvas id="cv" width="644" height="414"></canvas></div>
@@ -75,6 +78,32 @@
   <p id="msg"></p>
 </div>
 <script>
+// ===== Efek suara (WebAudio, tanpa file eksternal) =====
+const Snd={
+  ctx:null,muted:localStorage.getItem('phiphet_mute')==='1',
+  ac(){if(!this.ctx)this.ctx=new(window.AudioContext||window.webkitAudioContext)();if(this.ctx.state==='suspended')this.ctx.resume();return this.ctx;},
+  tone(f,d,type,vol,slide){if(this.muted)return;try{
+    const c=this.ac(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();
+    o.type=type||'sine';o.frequency.setValueAtTime(f,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+d);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.12,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+d+.06);
+    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+d+.1);}catch(e){}},
+  noise(d,vol,fc){if(this.muted)return;try{
+    const c=this.ac(),t=c.currentTime,n=Math.max(1,(d*c.sampleRate)|0),b=c.createBuffer(1,n,c.sampleRate),ch=b.getChannelData(0);
+    for(let i=0;i<n;i++)ch[i]=(Math.random()*2-1)*(1-i/n);
+    const s=c.createBufferSource();s.buffer=b,f=c.createBiquadFilter(),g=c.createGain();
+    f.type='bandpass';f.frequency.value=fc||2500;
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.2,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    s.connect(f);f.connect(g);g.connect(c.destination);s.start(t);}catch(e){}},
+  blip(){this.tone(660,.07,'sine',.07);},
+  click(){this.noise(.05,.22,3200);},
+  pop(){this.tone(280,.09,'sine',.12,620);},
+  del(){this.tone(480,.09,'sine',.1,190);},
+  clackClose(){this.noise(.07,.3,1700);this.tone(130,.08,'square',.07);},
+  clackOpen(){this.noise(.07,.3,2500);this.tone(230,.08,'square',.07);},
+  buzz(){this.tone(105,.45,'sawtooth',.11,85);},
+};
+function syncMuteBtn(){const b=document.getElementById('bMute');if(b)b.textContent=Snd.muted?'🔇':'🔊';}
 // ===== Konfigurasi grid =====
 const COLS=14, ROWS=9, CELL=46;
 const cv=document.getElementById('cv'), cx=cv.getContext('2d');
@@ -90,6 +119,14 @@ let tool='kursor', orient='h', dragging=false, ghost=null;
 let pDown=null, movingId=null, moveGhost=null;
 let sol={vmap:new Map(), cur:new Map(), msg:''};
 let playing=true, flashMsg='', lastT=performance.now(), simT=0;
+let wasShort=false, sparks=[];
+function spawnSpark(c){
+  const mx=(c.x1+c.x2)/2*CELL, my=(c.y1+c.y2)/2*CELL;
+  for(let i=0;i<12;i++){
+    const a=Math.random()*Math.PI*2, sp=40+Math.random()*130;
+    sparks.push({x:mx,y:my,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-50,life:.3+Math.random()*.3,t:0});
+  }
+}
 
 const pk=(x,y)=>x+','+y;
 function segKey(x1,y1,x2,y2){
@@ -194,7 +231,12 @@ function solveCircuit(list){
   for(const e of vsF)if(Math.abs(out.cur.get(e.id))>30){out.msg='⚠️ Hubung singkat! Arus baterai sangat besar.';break;}
   return out;
 }
-function refresh(){ sol=solveCircuit(comps); updatePanel(); draw(); }
+function refresh(){
+  sol=solveCircuit(comps); updatePanel(); draw();
+  const isShort=sol.msg.indexOf('HUBUNG SINGKAT')===0;
+  if(isShort&&!wasShort)Snd.buzz();
+  wasShort=isShort;
+}
 
 // ===== Gambar =====
 function drawComp(c, t){
@@ -285,15 +327,20 @@ function drawComp(c, t){
   }
   else if(c.type==='saklar'){
     if(c.lever===undefined)c.lever=c.closed?0:1;
-    cx.beginPath();cx.arc(ax,ay,4,0,7);cx.fillStyle='#cbd5e1';cx.fill();
-    cx.beginPath();cx.arc(bx,by,4,0,7);cx.fill();
-    const ex=(bx-ax)/L,ey=(by-ay)/L;
-    const ang=Math.atan2(ey,ex)-0.6*c.lever;   // tuas beranimasi mulus
-    cx.beginPath();cx.moveTo(ax,ay);
-    cx.lineTo(ax+Math.cos(ang)*L*2,ay+Math.sin(ang)*L*2);
-    cx.stroke();
-    cx.fillStyle=c.closed?'#4ade80':'#f87171';cx.font='11px sans-serif';
-    cx.fillText(c.closed?'tutup':'buka',mx-14,my-12);
+    // terminal kontak
+    cx.beginPath();cx.arc(ax,ay,4.5,0,7);cx.fillStyle='#cbd5e1';cx.fill();
+    cx.beginPath();cx.arc(bx,by,4.5,0,7);cx.fill();
+    // tuas: panjang = jarak antar kontak (2*L); tertutup = tepat menghubungkan keduanya
+    const base=Math.atan2(by-ay,bx-ax), ang=base-0.75*c.lever;
+    const kx=ax+Math.cos(ang)*2*L, ky=ay+Math.sin(ang)*2*L;
+    cx.strokeStyle=isSel?'#fbbf24':'#cbd5e1';cx.lineWidth=isSel?7:5;
+    cx.beginPath();cx.moveTo(ax,ay);cx.lineTo(kx,ky);cx.stroke();
+    // kenop di ujung tuas
+    cx.beginPath();cx.arc(kx,ky,6.5,0,7);
+    cx.fillStyle=c.closed?'#4ade80':'#f87171';cx.fill();
+    cx.strokeStyle='#0b1220';cx.lineWidth=2;cx.stroke();
+    cx.fillStyle=c.closed?'#4ade80':'#f87171';cx.font='bold 11px sans-serif';
+    cx.fillText(c.closed?'tertutup':'terbuka',mx-20,my-14);
   }
   // titik arus
   const I=sol.cur.get(c.id)||0;
@@ -318,6 +365,12 @@ function draw(){
     drawComp(c);
     cx.globalAlpha=1;
   }
+  // percikan api saat saklar dibuka dalam keadaan berarus
+  for(const s of sparks){
+    const al=Math.max(0,1-s.t/s.life);
+    cx.fillStyle=`rgba(253,224,71,${al.toFixed(2)})`;
+    cx.beginPath();cx.arc(s.x,s.y,2.6,0,7);cx.fill();
+  }
   const gg=(drag&&ghost)||(movingId&&moveGhost);
   if(gg){
     cx.setLineDash([8,6]);cx.lineWidth=4;
@@ -334,6 +387,7 @@ function draw(){
 const toolsEl=document.getElementById('tools');
 toolsEl.addEventListener('pointerdown',e=>{
   const b=e.target.closest('button');if(!b)return;
+  Snd.blip();
   tool=b.dataset.t;
   [...toolsEl.children].forEach(x=>x.classList.toggle('on',x===b));
   document.getElementById('hintTool').textContent =
@@ -341,6 +395,7 @@ toolsEl.addEventListener('pointerdown',e=>{
     : `Mode pasang ${TYPES[tool].nama}: seret di kanvas untuk menaruh (ketuk tombol komponen lagi untuk batal).`;
 });
 document.getElementById('bPutar').onclick=e=>{
+  Snd.click();
   orient=orient==='h'?'v':'h';
   e.target.textContent='🔄 Orientasi: '+(orient==='h'?'Horizontal':'Vertikal');
 };
@@ -377,7 +432,7 @@ cv.addEventListener('pointerup',e=>{
       const T=TYPES[tool];
       comps.push({id:nextId++,type:tool,x1:ghost.x1,y1:ghost.y1,x2:ghost.x2,y2:ghost.y2,
         val:T.def||0.01,closed:tool==='saklar'?false:undefined,ph:0});
-      selId=nextId-1;
+      selId=nextId-1; Snd.pop();
     }
     ghost=null; refresh(); return;
   }
@@ -385,14 +440,14 @@ cv.addEventListener('pointerup',e=>{
     const c=comps.find(c=>c.id===movingId);
     if(c&&moveGhost&&moveGhost.ok){
       c.x1=moveGhost.x1;c.y1=moveGhost.y1;c.x2=moveGhost.x2;c.y2=moveGhost.y2;
-      selId=c.id;
+      selId=c.id; Snd.click();
     } else if(c){ flashMsg='Tidak bisa dipindah ke sana.'; setTimeout(()=>{flashMsg='';},2200); }
     movingId=null; moveGhost=null; refresh(); return;
   }
   if(pDown){ selId=pDown.id; pDown=null; refresh(); }
 });
 cv.addEventListener('pointercancel',()=>{pDown=null;movingId=null;moveGhost=null;dragging=false;ghost=null;draw();});
-document.getElementById('bClear').onclick=()=>{comps=[];selId=null;refresh();};
+document.getElementById('bClear').onclick=()=>{Snd.del();comps=[];selId=null;refresh();};
 document.getElementById('bContoh').onclick=()=>{
   comps=[
     {id:nextId++,type:'baterai',x1:4,y1:6,x2:6,y2:6,val:9,ph:0},
@@ -407,19 +462,25 @@ document.getElementById('bContoh').onclick=()=>{
   selId=null; refresh();
 };
 document.getElementById('bDel').onclick=()=>{
-  comps=comps.filter(c=>c.id!==selId); selId=null; refresh();
+  Snd.del();comps=comps.filter(c=>c.id!==selId); selId=null; refresh();
 };
-document.getElementById('bTog').onclick=()=>{
+function toggleSwitch(){
   const c=comps.find(c=>c.id===selId);
-  if(c&&c.type==='saklar'){c.closed=!c.closed;refresh();}
-};
+  if(!c||c.type!=='saklar')return;
+  const Ib=Math.abs(sol.cur.get(c.id)||0);
+  c.closed=!c.closed;
+  if(c.closed)Snd.clackClose();
+  else{Snd.clackOpen();if(Ib>0.3)spawnSpark(c);}
+  refresh();
+}
+document.getElementById('bTog').onclick=toggleSwitch;
 document.getElementById('pVal').oninput=e=>{
   const c=comps.find(c=>c.id===selId); if(!c)return;
   c.val=parseFloat(e.target.value); refresh();
 };
 document.addEventListener('keydown',e=>{
   if((e.key==='Delete'||e.key==='Backspace')&&selId){
-    comps=comps.filter(c=>c.id!==selId); selId=null; refresh();
+    Snd.del();comps=comps.filter(c=>c.id!==selId); selId=null; refresh();
   }
 });
 function updatePanel(){
@@ -453,8 +514,8 @@ function setPlaying(v){
   bPlay.classList.toggle('on',v);
   simState.textContent=v?'▶ Simulasi berjalan':'⏸ Dijeda';
 }
-bPlay.onclick=()=>setPlaying(!playing);
-document.getElementById('bStop').onclick=()=>{for(const c of comps)c.ph=0;setPlaying(false);draw();};
+bPlay.onclick=()=>{Snd.blip();setPlaying(!playing);};
+document.getElementById('bStop').onclick=()=>{Snd.blip();for(const c of comps)c.ph=0;setPlaying(false);draw();};
 // ===== Putar komponen terpilih 90° =====
 document.getElementById('bRot').onclick=()=>{
   const c=comps.find(c=>c.id===selId);if(!c)return;
@@ -464,15 +525,16 @@ document.getElementById('bRot').onclick=()=>{
   else{a=mx-1;b=my;cc=mx+1;d=my;}
   const others=new Set(comps.filter(o=>o.id!==c.id).map(o=>segKey(o.x1,o.y1,o.x2,o.y2)));
   const inB=a>=0&&b>=0&&a<=COLS&&b<=ROWS&&cc>=0&&d>=0&&cc<=COLS&&d<=ROWS;
-  if(inB&&!others.has(segKey(a,b,cc,d))){c.x1=a;c.y1=b;c.x2=cc;c.y2=d;flashMsg='';refresh();}
+  if(inB&&!others.has(segKey(a,b,cc,d))){c.x1=a;c.y1=b;c.x2=cc;c.y2=d;flashMsg='';Snd.click();refresh();}
   else{flashMsg='Tidak bisa diputar di sini (mentok tepi / bertabrakan).';setTimeout(()=>{flashMsg='';},2600);draw();}
 };
 document.addEventListener('keydown',e=>{
   if((e.key==='r'||e.key==='R')&&tool!=='kursor')document.getElementById('bPutar').click();
 });
-// ===== Loop animasi arus =====
+// ===== Loop animasi =====
 function loop(now){
   const dt=Math.min((now-lastT)/1000,.05);lastT=now;
+  let needDraw=false;
   if(playing){
     simT+=dt;
     for(const c of comps){
@@ -481,17 +543,33 @@ function loop(now){
         const dir=I>0?1:-1;
         c.ph=((c.ph||0)+dir*dt*(0.5+Math.min(Math.abs(I),6)*0.6))%1;
       }
-      if(c.type==='saklar'){
-        if(c.lever===undefined)c.lever=c.closed?0:1;
-        const tgt=c.closed?0:1;
-        c.lever+=(tgt-c.lever)*Math.min(1,dt*10);
-      }
     }
-    draw();
+    needDraw=true;
   }
+  // tuas saklar & percikan selalu beranimasi walau simulasi dijeda
+  for(const c of comps){
+    if(c.type==='saklar'){
+      if(c.lever===undefined)c.lever=c.closed?0:1;
+      const tgt=c.closed?0:1, nl=c.lever+(tgt-c.lever)*Math.min(1,dt*10);
+      if(Math.abs(nl-c.lever)>0.0004){c.lever=nl;needDraw=true;}
+      else if(c.lever!==tgt){c.lever=tgt;needDraw=true;}
+    }
+  }
+  if(sparks.length){
+    for(const s of sparks){s.t+=dt;s.x+=s.vx*dt;s.y+=s.vy*dt;s.vy+=380*dt;}
+    sparks=sparks.filter(s=>s.t<s.life);
+    needDraw=true;
+  }
+  if(needDraw)draw();
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+syncMuteBtn();
+document.getElementById('bMute').onclick=()=>{
+  Snd.muted=!Snd.muted;
+  localStorage.setItem('phiphet_mute',Snd.muted?'1':'0');
+  syncMuteBtn();Snd.blip();
+};
 refresh();
 </script>
 </body>
