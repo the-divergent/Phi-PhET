@@ -128,7 +128,7 @@ function labels(){
   $('vL').textContent=(Math.round(Vs*10)/10)+' V';
   $('rL').textContent=Math.round(R)+' Ω';
   $('cL').textContent=Math.round(C*1e6)+' µF';
-  $('oT').textContent=(R*C).toFixed(2)+' s';
+  $('oT').textContent=(R*C).toFixed(1)+' s';
 }
 ['vR','rR','cR','spd'].forEach(id=>{$(id).oninput=upd;$(id).onchange=()=>Snd.tick();}); upd();
 $('bIsi').onclick=()=>{Snd.charge();mode='isi';$('bIsi').classList.add('on');$('bKosong').classList.remove('on');};
@@ -177,7 +177,7 @@ function step(now){
     hist.push({t,Vc,I}); if(hist.length>400) hist.shift();
   }
   // readout
-  $('oVc').textContent=Vc.toFixed(2)+' V';
+  $('oVc').textContent=Vc.toFixed(1)+' V';
   $('oI').textContent=(I*1000).toFixed(1)+' mA';
   $('oQ').textContent=(C*Vc*1000).toFixed(1)+' mC';
   draw(); drawGraph();

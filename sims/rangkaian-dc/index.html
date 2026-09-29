@@ -371,7 +371,7 @@ function draw(){
     cx.fillStyle=`rgba(253,224,71,${al.toFixed(2)})`;
     cx.beginPath();cx.arc(s.x,s.y,2.6,0,7);cx.fill();
   }
-  const gg=(drag&&ghost)||(movingId&&moveGhost);
+  const gg=ghost||(movingId&&moveGhost);
   if(gg){
     cx.setLineDash([8,6]);cx.lineWidth=4;
     cx.strokeStyle=gg.ok?'#4ade80':'#f87171';
