@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab Gerak Proyektil — Phi-PhET</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --acc:#fbbf24; --acc2:#38bdf8; --txt:#e2e8f0; --mut:#94a3b8; --line:#334155; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,sans-serif; padding:16px; max-width:780px; margin:0 auto; }
+  .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .top a { color:var(--acc); text-decoration:none; font-size:.9rem; }
+  .mbtn { background:none; border:1px solid var(--line); border-radius:8px; color:var(--txt); font-size:1rem; padding:4px 10px; cursor:pointer; }
+  .mbtn:hover { border-color:var(--acc); }
+  h1 { font-size:1.35rem; } h1 span { color:var(--acc); }
+  .hint { font-size:.82rem; color:var(--mut); margin:6px 0 12px; line-height:1.6; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
+  canvas { width:100%; border-radius:8px; background:#0b1220; display:block; }
+  .ctl { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
+  label { display:block; font-size:.8rem; color:var(--mut); margin:10px 0 4px; }
+  label b { color:var(--txt); float:right; }
+  input[type=range]{ width:100%; accent-color:var(--acc); }
+  select { width:100%; padding:8px; border-radius:8px; background:#0f172a; color:var(--txt); border:1px solid var(--line); }
+  .btns { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+  button.go { flex:1; padding:12px; border-radius:8px; border:none; font-weight:700; font-size:.95rem; cursor:pointer; min-width:150px; }
+  #bFire { background:var(--acc); color:#111; font-size:1.05rem; }
+  #bTarget { background:#334155; color:var(--txt); }
+  .read { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px; }
+  .read div { background:#0f172a; border:1px dashed #475569; border-radius:8px; padding:8px 4px; text-align:center; }
+  .read .v { font-size:1.05rem; color:var(--acc); font-weight:700; }
+  .read .k { font-size:.68rem; color:var(--mut); margin-top:2px; }
+  #cellS { border-color:#fbbf24 !important; box-shadow:0 0 0 1px #fbbf24; }
+  #cellS .v { font-size:1.25rem; }
+  .simbar { display:flex; gap:10px; align-items:center; }
+  .simbar button { padding:9px 20px; border-radius:20px; border:1px solid var(--line); background:#0f172a; color:var(--txt); cursor:pointer; font-weight:700; font-size:.85rem; }
+  .simbar button.on { background:var(--acc); color:#111; border-color:var(--acc); }
+  .simbar button#bStop { background:#7f1d1d; border-color:#7f1d1d; color:#fff; }
+  .simbar span { font-size:.82rem; color:var(--mut); margin-left:auto; }
+</style>
+</head>
+<body>
+<div class="top"><a href="../../index.html">← Semua simulasi</a><button id="bMute" class="mbtn" title="Suara on/off">🔊</button></div>
+<h1>Lab <span>Gerak Proyektil</span></h1>
+<p class="hint">Atur <b>sudut</b> dan <b>kecepatan</b> meriam, tekan <b>TEMBAK!</b> — kenai bendera target sejauh mungkin. Garis putus-putus adalah tebakan lintasan sebelum ditembakkan.</p>
+<div class="card simbar">
+  <button id="bPlay" class="on">⏸ Pause</button>
+  <button id="bStop">⏹ Stop &amp; Reset</button>
+  <span id="simState">▶ Simulasi berjalan</span>
+</div>
+<div class="card"><canvas id="cv" width="680" height="380"></canvas></div>
+<div class="card">
+  <div class="ctl">
+    <div><label>Sudut tembak <b id="aL">45°</b></label><input type="range" id="aR" min="10" max="80" step="1" value="45"></div>
+    <div><label>Kecepatan awal <b id="vL">25 m/s</b></label><input type="range" id="vR" min="5" max="40" step="1" value="25"></div>
+    <div><label>Gravitasi</label><select id="gS">
+      <option value="1.6">🌙 Bulan — 1.6 m/s²</option>
+      <option value="3.7">♂ Mars — 3.7 m/s²</option>
+      <option value="9.8" selected>🌍 Bumi — 9.8 m/s²</option>
+      <option value="24.8">♃ Jupiter — 24.8 m/s²</option>
+    </select></div>
+    <div><label>Jejak lintasan</label><select id="tS"><option value="1">Tampilkan</option><option value="0">Sembunyikan</option></select></div>
+  </div>
+  <div class="btns">
+    <button class="go" id="bFire">💥 TEMBAK!</button>
+    <button class="go" id="bTarget">🎯 Target baru</button>
+  </div>
+  <div class="read">
+    <div><div class="v" id="oR">0.0 m</div><div class="k">Jangkauan</div></div>
+    <div><div class="v" id="oH">0.0 m</div><div class="k">Tinggi maks</div></div>
+    <div><div class="v" id="oT">0.0 s</div><div class="k">Waktu terbang</div></div>
+    <div id="cellS"><div class="v" id="oS">0</div><div class="k">🎯 Target kena</div></div>
+  </div>
+  <p class="hint">R = v²·sin(2θ)/g &nbsp;•&nbsp; H = (v·sinθ)²/2g &nbsp;•&nbsp; Sudut 45° = jangkauan terjauh.</p>
+</div>
+<script>
+// ===== Efek suara khas lab proyektil =====
+const Snd={
+  ctx:null,muted:localStorage.getItem('phiphet_mute')==='1',
+  ac(){if(!this.ctx)this.ctx=new(window.AudioContext||window.webkitAudioContext)();if(this.ctx.state==='suspended')this.ctx.resume();return this.ctx;},
+  tone(f,d,type,vol,slide){if(this.muted)return;try{
+    const c=this.ac(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();
+    o.type=type||'sine';o.frequency.setValueAtTime(f,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+d);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.12,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+d+.06);
+    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+d+.1);}catch(e){}},
+  blip(){this.tone(660,.07,'sine',.07);},
+  tick(){this.tone(1200,.03,'square',.04);},
+  boom(){if(this.muted)return;try{
+    const c=this.ac(),t=c.currentTime,n=(0.5*c.sampleRate)|0,b=c.createBuffer(1,n,c.sampleRate),ch=b.getChannelData(0);
+    for(let i=0;i<n;i++)ch[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.2);
+    const s=c.createBufferSource();s.buffer=b,f2=c.createBiquadFilter(),g=c.createGain();
+    f2.type='lowpass';f2.frequency.setValueAtTime(900,t);f2.frequency.exponentialRampToValueAtTime(120,t+0.45);
+    g.gain.setValueAtTime(.5,t);g.gain.exponentialRampToValueAtTime(.0001,t+0.5);
+    s.connect(f2);f2.connect(g);g.connect(c.destination);s.start(t);
+    this.tone(90,.4,'sine',.25,45);}catch(e){}},
+  chime(){this.tone(880,.12,'sine',.12);setTimeout(()=>this.tone(1320,.2,'sine',.12),110);},
+  thud(){this.tone(120,.15,'sine',.12,60);},
+  noise(d,vol,fc){if(this.muted)return;try{
+    const c=this.ac(),t=c.currentTime,n=Math.max(1,(d*c.sampleRate)|0),b=c.createBuffer(1,n,c.sampleRate),ch=b.getChannelData(0);
+    for(let i=0;i<n;i++)ch[i]=(Math.random()*2-1)*(1-i/n);
+    const s=c.createBufferSource();s.buffer=b,f=c.createBiquadFilter(),g=c.createGain();
+    f.type='bandpass';f.frequency.value=fc||2500;
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.2,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    s.connect(f);f.connect(g);g.connect(c.destination);s.start(t);}catch(e){}},
+};
+function syncMuteBtn(){const b=document.getElementById('bMute');if(b)b.textContent=Snd.muted?'🔇':'🔊';}
+const cv=document.getElementById('cv'), cx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const GX=70, GY=336; // pangkal meriam (px)
+let ang=45, v0=25, g=9.8, showTrail=true;
+let playing=true, simT=0;
+let ball=null, trail=[], score=0, targetX=55, flash=0, msg='';
+const rad=a=>a*Math.PI/180;
+function theory(){
+  const R=v0*v0*Math.sin(2*rad(ang))/g;
+  const H=Math.pow(v0*Math.sin(rad(ang)),2)/(2*g);
+  const T=2*v0*Math.sin(rad(ang))/g;
+  return {R,H,T};
+}
+function scale(){ // px per meter, otomatis muat
+  const need=Math.max(theory().R, targetX+8, 30);
+  return Math.min(9,(cv.width-GX-30)/need);
+}
+function newTarget(){ targetX=25+Math.random()*55; }
+newTarget();
+function labels(){
+  $('aL').textContent=Math.round(ang)+'°';
+  $('vL').textContent=Math.round(v0)+' m/s';
+  const th=theory();
+  $('oR').textContent=th.R.toFixed(1)+' m';
+  $('oH').textContent=th.H.toFixed(1)+' m';
+  $('oT').textContent=th.T.toFixed(1)+' s';
+  $('oS').textContent=score;
+}
+['aR','vR'].forEach(id=>{$(id).oninput=()=>{ang=+$('aR').value;v0=+$('vR').value;labels();};$(id).onchange=()=>Snd.tick();});
+$('gS').onchange=e=>{Snd.blip();g=+e.target.value;labels();};
+$('tS').onchange=e=>{showTrail=e.target.value==='1';};
+labels();
+$('bFire').onclick=()=>{
+  if(ball)return;
+  Snd.boom();
+  ball={t:0,x:0,y:0};
+  trail=[]; msg='';
+};
+$('bTarget').onclick=()=>{Snd.blip();newTarget();msg='🎯 target baru dipasang';};
+// ===== Transport =====
+function setPlaying(v){
+  playing=v;
+  $('bPlay').textContent=v?'⏸ Pause':'▶ Play';
+  $('bPlay').classList.toggle('on',v);
+  $('simState').textContent=v?'▶ Simulasi berjalan':'⏸ Dijeda';
+}
+$('bPlay').onclick=()=>{Snd.blip();setPlaying(!playing);};
+$('bStop').onclick=()=>{Snd.blip();ball=null;trail=[];msg='';setPlaying(false);};
+
+let last=performance.now();
+function step(now){
+  const dt=Math.min((now-last)/1000,.05); last=now;
+  if(playing){
+    simT+=dt; flash=Math.max(0,flash-dt);
+    if(ball){
+      ball.t+=dt;
+      const vx=v0*Math.cos(rad(ang)), vy=v0*Math.sin(rad(ang));
+      ball.x=vx*ball.t; ball.y=vy*ball.t-0.5*g*ball.t*ball.t;
+      trail.push({x:ball.x,y:Math.max(ball.y,0)});
+      if(trail.length>600)trail.shift();
+      if(ball.y<=0&&ball.t>0.05){
+        // mendarat
+        const landX=vx*ball.t;
+        if(Math.abs(landX-targetX)<=2.5){
+          score++; Snd.chime(); msg='🎯 KENA! +1 poin'; flash=1;
+          newTarget();
+        } else {
+          Snd.thud(); msg='mendarat di '+landX.toFixed(1)+' m — coba lagi!';
+        }
+        ball=null; labels();
+      }
+    }
+  }
+  draw();
+  requestAnimationFrame(step);
+}
+function draw(){
+  cx.clearRect(0,0,cv.width,cv.height);
+  const s=scale();
+  const X=m=>GX+m*s, Y=m=>GY-m*s;
+  // langit: bintang-bintang samar
+  cx.fillStyle='rgba(226,232,240,.25)';
+  for(let i=0;i<40;i++){const sx=(i*97)%660+10, sy2=(i*57)%200+10;cx.fillRect(sx,sy2,1.6,1.6);}
+  // tanah
+  cx.fillStyle='#16233d'; cx.fillRect(0,GY,cv.width,cv.height-GY);
+  cx.strokeStyle='#38bdf8'; cx.lineWidth=2;
+  cx.beginPath(); cx.moveTo(0,GY); cx.lineTo(cv.width,GY); cx.stroke();
+  // penggaris jarak tiap 10 m
+  cx.fillStyle='#475569'; cx.font='11px sans-serif';
+  for(let m=10;X(m)<cv.width-10;m+=10){
+    cx.fillRect(X(m),GY,1,8); cx.fillText(m+'m',X(m)-8,GY+20);
+  }
+  // target: bendera
+  const tx=X(targetX);
+  cx.strokeStyle='#e2e8f0'; cx.lineWidth=3;
+  cx.beginPath(); cx.moveTo(tx,GY); cx.lineTo(tx,GY-46); cx.stroke();
+  const wob=playing?Math.sin(simT*5)*3:0;
+  cx.fillStyle=flash>0?'#fbbf24':'#ef4444';
+  cx.beginPath(); cx.moveTo(tx,GY-46); cx.lineTo(tx+26+wob,GY-38); cx.lineTo(tx,GY-30); cx.closePath(); cx.fill();
+  cx.fillStyle='#94a3b8'; cx.font='12px sans-serif'; cx.fillText('TARGET',tx-20,GY-52);
+  // tebakan lintasan (garis putus-putus)
+  if(!ball){
+    const th=theory();
+    cx.save(); cx.setLineDash([6,6]);
+    cx.strokeStyle='rgba(251,191,36,.55)'; cx.lineWidth=2; cx.beginPath();
+    for(let t=0;t<=th.T;t+=th.T/60){
+      const px2=X(v0*Math.cos(rad(ang))*t), py2=Y(v0*Math.sin(rad(ang))*t-0.5*g*t*t);
+      t===0?cx.moveTo(px2,py2):cx.lineTo(px2,py2);
+    }
+    cx.stroke(); cx.restore();
+  }
+  // jejak
+  if(showTrail&&trail.length>1){
+    cx.strokeStyle='rgba(56,189,248,.7)'; cx.lineWidth=2; cx.beginPath();
+    trail.forEach((p,i)=>{const px2=X(p.x),py2=Y(p.y);i?cx.lineTo(px2,py2):cx.moveTo(px2,py2);});
+    cx.stroke();
+  }
+  // meriam
+  cx.save(); cx.translate(GX,GY); cx.rotate(-rad(ang));
+  cx.fillStyle='#334155'; cx.strokeStyle='#94a3b8'; cx.lineWidth=2;
+  cx.beginPath(); cx.roundRect?cx.roundRect(0,-11,64,22,8):cx.rect(0,-11,64,22,8); cx.fill(); cx.stroke();
+  cx.fillStyle='#0f172a'; cx.beginPath(); cx.arc(64,0,9,0,7); cx.fill();
+  cx.restore();
+  cx.fillStyle='#475569'; cx.beginPath(); cx.arc(GX,GY,16,0,7); cx.fill();
+  cx.strokeStyle='#94a3b8'; cx.lineWidth=2; cx.stroke();
+  // bola meriam
+  if(ball){
+    const bx2=X(ball.x), by2=Y(Math.max(ball.y,0));
+    // bayangan
+    cx.fillStyle='rgba(0,0,0,.35)'; cx.beginPath(); cx.ellipse(bx2,GY+4,10,3,0,0,7); cx.fill();
+    const gr2=cx.createRadialGradient(bx2-3,by2-3,1,bx2,by2,11);
+    gr2.addColorStop(0,'#fde68a'); gr2.addColorStop(1,'#b45309');
+    cx.fillStyle=gr2; cx.beginPath(); cx.arc(bx2,by2,9,0,7); cx.fill();
+    // vektor kecepatan
+    const vx=v0*Math.cos(rad(ang)), vy=v0*Math.sin(rad(ang))-g*ball.t;
+    cx.strokeStyle='#38bdf8'; cx.lineWidth=2.5;
+    cx.beginPath(); cx.moveTo(bx2,by2); cx.lineTo(bx2+vx*s*0.35,by2-vy*s*0.35); cx.stroke();
+  }
+  // pesan
+  if(msg){
+    cx.font='bold 16px sans-serif';
+    const tw=cx.measureText(msg).width;
+    cx.fillStyle='rgba(11,18,32,.9)';
+    cx.beginPath(); cx.roundRect?cx.roundRect(cv.width/2-tw/2-12,14,tw+24,32,10):cx.rect(cv.width/2-tw/2-12,14,tw+24,32,10); cx.fill();
+    cx.fillStyle=flash>0?'#fbbf24':'#e2e8f0'; cx.fillText(msg,cv.width/2-tw/2,36);
+  }
+  // info gravitasi
+  cx.fillStyle='#94a3b8'; cx.font='13px sans-serif';
+  cx.fillText('g = '+g.toFixed(1)+' m/s² • skala otomatis',16,26);
+}
+syncMuteBtn();
+$('bMute').onclick=()=>{
+  Snd.muted=!Snd.muted;
+  localStorage.setItem('phiphet_mute',Snd.muted?'1':'0');
+  syncMuteBtn(); Snd.blip();
+};
+requestAnimationFrame(step);
+</script>
+</body>
+</html>

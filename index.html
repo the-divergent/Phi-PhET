@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Phi-PhET — Simulasi Sains Interaktif</title>
-<meta name="description" content="Phi-PhET: simulasi sains interaktif gratis. Rakit rangkaian DC, mainkan Hukum Ohm, isi-kosongkan kapasitor — langsung di browser.">
+<meta name="description" content="Phi-PhET: simulasi sains interaktif gratis. Rakit rangkaian DC, mainkan Hukum Ohm, isi-kosongkan kapasitor, dengarkan gelombang bunyi, induksi magnet, tembakkan proyektil — langsung di browser.">
 <style>
   :root{
     --bg:#070b16; --bg2:#0f172a; --card:#111c33; --acc:#fbbf24; --acc2:#38bdf8;
@@ -57,6 +57,9 @@
   .card.live .tag{background:rgba(251,191,36,.12);color:var(--acc);border:1px solid rgba(251,191,36,.45)}
   .card.soon{opacity:.6} .card.soon .tag{background:rgba(143,160,189,.1);color:var(--mut);border:1px solid var(--line)}
   .card .num{position:absolute;top:14px;right:18px;font-size:.72rem;color:var(--mut);letter-spacing:1px}
+  .spec{list-style:none;margin-top:12px}
+  .spec li{color:var(--mut);font-size:.8rem;line-height:1.55;padding-left:20px;position:relative;margin-bottom:5px}
+  .spec li::before{content:"✓";position:absolute;left:0;color:var(--acc2);font-weight:700}
   /* ===== FEATURES ===== */
   .feats{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
   .feat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px}
@@ -83,7 +86,7 @@
       <a class="more" href="https://github.com/the-divergent/Phi-PhET">Lihat Kode</a>
     </div>
     <div class="stats">
-      <div><b>3</b><span>simulasi live</span></div>
+      <div><b>6</b><span>simulasi live</span></div>
       <div><b>100%</b><span>gratis &amp; open</span></div>
       <div><b>0</b><span>install / daftar</span></div>
     </div>
@@ -93,7 +96,7 @@
 
 <section id="lab">
   <h2>🔬 Pilih <span>Laboratoriummu</span></h2>
-  <p class="sec-sub">Batch 1: Elektro — simulasi baru ditambahkan bertahap.</p>
+  <p class="sec-sub">Batch 1: Elektro • Batch 2: Gelombang, Magnet &amp; Gerak — simulasi baru ditambahkan bertahap.</p>
   <div class="grid">
     <a class="card live" href="sims/rangkaian-dc/index.html">
       <span class="num">01</span><div class="ico">🔋</div>
@@ -113,6 +116,24 @@
       <p>Isi dan kosongkan kapasitor lewat resistor. Amati muatan menumpuk di pelat dan kurva eksponensial RC secara live.</p>
       <span class="tag">▶ Buka simulasi</span>
     </a>
+    <a class="card live" href="sims/gelombang/index.html">
+      <span class="num">04</span><div class="ico">🔊</div>
+      <h3>Lab Gelombang Bunyi</h3>
+      <p>Geser frekuensi &amp; amplitudo, dengarkan nadanya sambil melihat cincin gelombang dan rapatan udara merambat.</p>
+      <span class="tag">▶ Buka simulasi</span>
+    </a>
+    <a class="card live" href="sims/magnet/index.html">
+      <span class="num">05</span><div class="ico">🧲</div>
+      <h3>Lab Magnet &amp; Induksi</h3>
+      <p>Seret magnet ke kumparan dan nyalakan lampu tanpa baterai — hukum Faraday bekerja saat magnet bergerak.</p>
+      <span class="tag">▶ Buka simulasi</span>
+    </a>
+    <a class="card live" href="sims/proyektil/index.html">
+      <span class="num">06</span><div class="ico">🎯</div>
+      <h3>Lab Gerak Proyektil</h3>
+      <p>Atur sudut &amp; kecepatan meriam, taklukkan gravitasi Bulan sampai Jupiter, dan kenai target sejauh mungkin.</p>
+      <span class="tag">▶ Buka simulasi</span>
+    </a>
   </div>
 </section>
 
@@ -129,11 +150,32 @@
 
 <section>
   <h2>🚧 Segera <span>hadir</span></h2>
-  <p class="sec-sub">Antrean simulasi batch berikutnya.</p>
+  <p class="sec-sub">Batch 3 dalam pengembangan — spesifikasi tiap lab sudah dikunci.</p>
   <div class="grid">
-    <div class="card soon"><div class="ico">🌊</div><h3>Gelombang &amp; Bunyi</h3><p>Frekuensi, amplitudo, dan interferensi gelombang tali.</p><span class="tag">Dalam pengembangan</span></div>
-    <div class="card soon"><div class="ico">🧲</div><h3>Magnet &amp; Induksi</h3><p>Gerakkan magnet dan nyalakan lampu via induksi Faraday.</p><span class="tag">Dalam pengembangan</span></div>
-    <div class="card soon"><div class="ico">🎯</div><h3>Gerak Proyektil</h3><p>Atur sudut dan kecepatan meriam, taklukkan gravitasi.</p><span class="tag">Dalam pengembangan</span></div>
+    <div class="card soon"><div class="ico">🔦</div><h3>Lab Optik — Cermin &amp; Lensa</h3>
+      <p>Gambar sinar dan bayangan dengan ray-tracing 2D real-time.</p>
+      <ul class="spec">
+        <li>Cermin datar, cekung &amp; cembung + lensa cembung &amp; cekung</li>
+        <li>Bayangan maya / nyata digambar otomatis dari 3 sinar istimewa</li>
+        <li>Slider jarak benda &amp; titik fokus, ukuran bayangan live</li>
+      </ul>
+      <span class="tag">Dalam pengembangan</span></div>
+    <div class="card soon"><div class="ico">〰️</div><h3>Lab Rangkaian AC</h3>
+      <p>Sumber AC bertemu osiloskop — lihat listrik bolak-balik bekerja.</p>
+      <ul class="spec">
+        <li>Osiloskop 2 kanal: tegangan &amp; arus tergambar bersamaan</li>
+        <li>Resistor, induktor &amp; kapasitor + sapuan frekuensi otomatis</li>
+        <li>Deteksi frekuensi resonansi RLC + beda fase live</li>
+      </ul>
+      <span class="tag">Dalam pengembangan</span></div>
+    <div class="card soon"><div class="ico">🌡️</div><h3>Lab Termodinamika</h3>
+      <p>Panaskan gas ideal dan saksikan partikelnya bergerak liar.</p>
+      <ul class="spec">
+        <li>Simulasi partikel gas: suhu &amp; volume bisa digeser bebas</li>
+        <li>Hukum Boyle, Charles &amp; Gay-Lussac terbukti dari data live</li>
+        <li>Diagram P–V digambar otomatis + hitungan usaha &amp; kalor</li>
+      </ul>
+      <span class="tag">Dalam pengembangan</span></div>
   </div>
 </section>
 

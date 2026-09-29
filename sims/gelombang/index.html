@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab Gelombang Bunyi — Phi-PhET</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --acc:#fbbf24; --acc2:#38bdf8; --txt:#e2e8f0; --mut:#94a3b8; --line:#334155; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,sans-serif; padding:16px; max-width:780px; margin:0 auto; }
+  .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .top a { color:var(--acc); text-decoration:none; font-size:.9rem; }
+  .mbtn { background:none; border:1px solid var(--line); border-radius:8px; color:var(--txt); font-size:1rem; padding:4px 10px; cursor:pointer; }
+  .mbtn:hover { border-color:var(--acc); }
+  h1 { font-size:1.35rem; } h1 span { color:var(--acc); }
+  .hint { font-size:.82rem; color:var(--mut); margin:6px 0 12px; line-height:1.6; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
+  canvas { width:100%; border-radius:8px; background:#0b1220; display:block; }
+  .ctl { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
+  label { display:block; font-size:.8rem; color:var(--mut); margin:10px 0 4px; }
+  label b { color:var(--txt); float:right; }
+  input[type=range]{ width:100%; accent-color:var(--acc); }
+  select { width:100%; padding:8px; border-radius:8px; background:#0f172a; color:var(--txt); border:1px solid var(--line); }
+  .btns { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+  button.go { flex:1; padding:12px; border-radius:8px; border:none; font-weight:700; font-size:.95rem; cursor:pointer; min-width:150px; }
+  #bDengar { background:var(--acc); color:#111; }
+  #bDengar.off { background:#334155; color:var(--txt); }
+  .read { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
+  .read div { background:#0f172a; border:1px dashed #475569; border-radius:8px; padding:8px 4px; text-align:center; }
+  .read .v { font-size:1.05rem; color:var(--acc); font-weight:700; }
+  .read .k { font-size:.68rem; color:var(--mut); margin-top:2px; }
+  .simbar { display:flex; gap:10px; align-items:center; }
+  .simbar button { padding:9px 20px; border-radius:20px; border:1px solid var(--line); background:#0f172a; color:var(--txt); cursor:pointer; font-weight:700; font-size:.85rem; }
+  .simbar button.on { background:var(--acc); color:#111; border-color:var(--acc); }
+  .simbar button#bStop { background:#7f1d1d; border-color:#7f1d1d; color:#fff; }
+  .simbar span { font-size:.82rem; color:var(--mut); margin-left:auto; }
+</style>
+</head>
+<body>
+<div class="top"><a href="../../index.html">← Semua simulasi</a><button id="bMute" class="mbtn" title="Suara on/off">🔊</button></div>
+<h1>Lab <span>Gelombang Bunyi</span></h1>
+<p class="hint">Geser <b>frekuensi</b> dan <b>amplitudo</b>, lalu tekan <b>Dengarkan nada</b> untuk mendengar sekaligus melihat gelombang yang keluar dari speaker. Coba dua mode tampilan!</p>
+<div class="card simbar">
+  <button id="bPlay" class="on">⏸ Pause</button>
+  <button id="bStop">⏹ Stop &amp; Reset</button>
+  <span id="simState">▶ Simulasi berjalan</span>
+</div>
+<div class="card"><canvas id="cv" width="680" height="330"></canvas></div>
+<div class="card">
+  <div class="ctl">
+    <div><label>Frekuensi <b id="fL">440 Hz</b></label><input type="range" id="fR" min="50" max="2000" step="10" value="440"></div>
+    <div><label>Amplitudo <b id="aL">70%</b></label><input type="range" id="aR" min="10" max="100" step="5" value="70"></div>
+    <div><label>Mode tampilan</label><select id="mode"><option value="cincin">Cincin gelombang</option><option value="partikel">Partikel udara</option></select></div>
+    <div><label>Laju bunyi di udara</label><select id="spd" disabled><option>343 m/s (tetap)</option></select></div>
+  </div>
+  <div class="btns">
+    <button class="go" id="bDengar">🔊 Dengarkan nada</button>
+  </div>
+  <div class="read">
+    <div><div class="v" id="oF">440 Hz</div><div class="k">Frekuensi (f)</div></div>
+    <div><div class="v" id="oT">2.3 ms</div><div class="k">Periode (T = 1/f)</div></div>
+    <div><div class="v" id="oLam">0.8 m</div><div class="k">Panjang gelombang (λ)</div></div>
+  </div>
+  <p class="hint">v = λ × f &nbsp;•&nbsp; Nada makin tinggi = frekuensi makin besar = gelombang makin rapat.</p>
+</div>
+<script>
+// ===== Efek suara khas lab bunyi =====
+const Snd={
+  ctx:null,muted:localStorage.getItem('phiphet_mute')==='1',osc:null,oscG:null,
+  ac(){if(!this.ctx)this.ctx=new(window.AudioContext||window.webkitAudioContext)();if(this.ctx.state==='suspended')this.ctx.resume();return this.ctx;},
+  tone(f,d,type,vol,slide){if(this.muted)return;try{
+    const c=this.ac(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();
+    o.type=type||'sine';o.frequency.setValueAtTime(f,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+d);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.12,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+d+.06);
+    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+d+.1);}catch(e){}},
+  blip(){this.tone(660,.07,'sine',.07);},
+  tick(){this.tone(1200,.03,'square',.04);},
+  nadaStart(f){ if(this.muted)return; try{
+    const c=this.ac(); this.nadaStop();
+    this.osc=c.createOscillator(); this.oscG=c.createGain();
+    this.osc.type='sine'; this.osc.frequency.value=f;
+    this.oscG.gain.setValueAtTime(.0001,c.currentTime);
+    this.oscG.gain.exponentialRampToValueAtTime(.16,c.currentTime+.05);
+    this.osc.connect(this.oscG); this.oscG.connect(c.destination); this.osc.start();
+  }catch(e){} },
+  nadaStop(){ try{ if(this.osc){ const c=this.ac(),t=c.currentTime;
+    this.oscG.gain.cancelScheduledValues(t); this.oscG.gain.setValueAtTime(this.oscG.gain.value,t);
+    this.oscG.gain.exponentialRampToValueAtTime(.0001,t+.08);
+    const o=this.osc; setTimeout(()=>{try{o.stop();}catch(e){}},150); this.osc=null; } }catch(e){} },
+};
+function syncMuteBtn(){const b=document.getElementById('bMute');if(b)b.textContent=Snd.muted?'🔇':'🔊';}
+const cv=document.getElementById('cv'), cx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const V=343; // laju bunyi di udara (m/s)
+let f=440, amp=0.7, mode='cincin', playing=true, simT=0, phase=0;
+let rings=[], dengar=false;
+function labels(){
+  $('fL').textContent=Math.round(f)+' Hz';
+  $('aL').textContent=Math.round(amp*100)+'%';
+  $('oF').textContent=Math.round(f)+' Hz';
+  $('oT').textContent=(1000/f).toFixed(1)+' ms';
+  $('oLam').textContent=(V/f).toFixed(1)+' m';
+}
+['fR','aR'].forEach(id=>{$(id).oninput=()=>{f=+$('fR').value;amp=+$('aR').value/100;labels();};$(id).onchange=()=>Snd.tick();});
+$('mode').onchange=e=>{Snd.blip();mode=e.target.value;};
+labels();
+$('bDengar').onclick=()=>{
+  dengar=!dengar;
+  const b=$('bDengar');
+  if(dengar){ Snd.nadaStart(f); b.textContent='🔇 Hentikan nada'; b.classList.add('off'); }
+  else { Snd.nadaStop(); b.textContent='🔊 Dengarkan nada'; b.classList.remove('off'); }
+};
+// ===== Transport =====
+function setPlaying(v){
+  playing=v;
+  $('bPlay').textContent=v?'⏸ Pause':'▶ Play';
+  $('bPlay').classList.toggle('on',v);
+  $('simState').textContent=v?'▶ Simulasi berjalan':'⏸ Dijeda';
+}
+$('bPlay').onclick=()=>{Snd.blip();setPlaying(!playing);};
+$('bStop').onclick=()=>{Snd.blip();rings=[];phase=0;simT=0;setPlaying(false);if(dengar)$('bDengar').onclick();};
+
+let last=performance.now();
+function step(now){
+  const dt=Math.min((now-last)/1000,.1); last=now;
+  if(playing){
+    simT+=dt; phase+=dt*f;
+    // pancarkan muka gelombang tiap satu periode
+    while(phase>=1){ phase-=1; rings.push({r:26}); }
+    const cVis=150; // laju visual di kanvas (px/detik)
+    for(const w of rings) w.r+=cVis*dt;
+    rings=rings.filter(w=>w.r<640);
+  }
+  draw();
+  requestAnimationFrame(step);
+}
+function drawSpeaker(x,y){
+  // badan speaker
+  cx.fillStyle='#1e293b'; cx.strokeStyle='#475569'; cx.lineWidth=2;
+  cx.beginPath(); cx.roundRect?cx.roundRect(x-34,y-52,52,104,8):cx.rect(x-34,y-52,52,104,8); cx.fill(); cx.stroke();
+  // membran bergetar mengikuti fase nada
+  const vib=playing?Math.sin(simT*2*Math.PI*Math.min(f,40)/40*4)*8*amp:0;
+  cx.fillStyle='#334155';
+  cx.beginPath(); cx.ellipse(x+18+vib,y,14,34,0,0,7); cx.fill();
+  cx.strokeStyle='#fbbf24'; cx.lineWidth=2; cx.stroke();
+  cx.fillStyle='#94a3b8'; cx.font='13px sans-serif'; cx.fillText('SPEAKER',x-32,y+70);
+}
+function draw(){
+  cx.clearRect(0,0,cv.width,cv.height);
+  const sy=118;
+  drawSpeaker(70,sy);
+  if(mode==='cincin'){
+    for(const w of rings){
+      const al=Math.max(0,1-w.r/640);
+      cx.strokeStyle=`rgba(56,189,248,${(al*.8).toFixed(2)})`;
+      cx.lineWidth=2+3*al;
+      cx.beginPath(); cx.arc(88,sy,w.r,-1.05,1.05); cx.stroke();
+      cx.strokeStyle=`rgba(251,191,36,${(al*.35).toFixed(2)})`;
+      cx.lineWidth=1.5;
+      cx.beginPath(); cx.arc(88,sy,w.r+7,-1.05,1.05); cx.stroke();
+    }
+    cx.fillStyle='#94a3b8'; cx.font='13px sans-serif';
+    cx.fillText('← rapat = frekuensi tinggi • renggang = frekuensi rendah →',150,36);
+  } else {
+    // partikel udara: rapatan & renggangan
+    const lamV=110, k=2*Math.PI/lamV, om=2*Math.PI*(150/lamV);
+    for(let gy=0;gy<5;gy++){
+      const y=52+gy*26;
+      for(let gx=0;gx<46;gx++){
+        const x0=110+gx*12.6;
+        const disp=playing?Math.sin(k*x0-om*simT)*10*amp:0;
+        const dens=Math.cos(k*(x0+disp)-om*simT); // >0 rapatan
+        const heat=Math.max(0,dens);
+        cx.fillStyle=`rgba(${Math.round(56+heat*199)},${Math.round(189-heat*60)},${Math.round(248-heat*170)},${(.35+heat*.55).toFixed(2)})`;
+        cx.beginPath(); cx.arc(x0+disp,y,2.6,0,7); cx.fill();
+      }
+    }
+    cx.fillStyle='#94a3b8'; cx.font='13px sans-serif';
+    cx.fillText('kuning terang = rapatan (tekanan tinggi) • biru = renggangan',130,36);
+    cx.fillText('Udara sendiri tidak ikut pergi — partikelnya hanya bergetar di tempat!',130,196);
+  }
+  // grafik gelombang di bawah
+  const gy0=268, gh=44;
+  cx.strokeStyle='#243353'; cx.lineWidth=1;
+  cx.beginPath(); cx.moveTo(20,gy0); cx.lineTo(660,gy0); cx.stroke();
+  cx.strokeStyle='#fbbf24'; cx.lineWidth=2.5; cx.beginPath();
+  for(let x=20;x<=660;x+=3){
+    const tt=playing?simT:simT;
+    const y=gy0-Math.sin((x-20)/640*8*Math.PI-tt*2*Math.PI*Math.min(f/440,3))*gh*amp;
+    x===20?cx.moveTo(x,y):cx.lineTo(x,y);
+  }
+  cx.stroke();
+  cx.fillStyle='#94a3b8'; cx.font='13px sans-serif';
+  cx.fillText('bentuk gelombang terhadap waktu →',20,gy0+gh+18);
+  // badge nada aktif
+  if(dengar){
+    cx.fillStyle='rgba(251,191,36,.14)'; cx.strokeStyle='#fbbf24'; cx.lineWidth=2;
+    cx.beginPath(); cx.roundRect?cx.roundRect(520,8,140,30,15):cx.rect(520,8,140,30,15); cx.fill(); cx.stroke();
+    const pul=.6+.4*Math.abs(Math.sin(simT*6));
+    cx.fillStyle=`rgba(251,191,36,${pul.toFixed(2)})`; cx.font='bold 14px sans-serif';
+    cx.fillText('♪ '+Math.round(f)+' Hz',548,29);
+  }
+}
+syncMuteBtn();
+$('bMute').onclick=()=>{
+  Snd.muted=!Snd.muted;
+  localStorage.setItem('phiphet_mute',Snd.muted?'1':'0');
+  if(Snd.muted&&dengar)$('bDengar').onclick();
+  syncMuteBtn(); Snd.blip();
+};
+requestAnimationFrame(step);
+</script>
+</body>
+</html>
