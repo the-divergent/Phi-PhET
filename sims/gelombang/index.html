@@ -5,210 +5,336 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lab Gelombang Bunyi — Phi-PhET</title>
 <style>
-  :root { --bg:#0f172a; --card:#1e293b; --acc:#fbbf24; --acc2:#38bdf8; --txt:#e2e8f0; --mut:#94a3b8; --line:#334155; }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,sans-serif; padding:16px; max-width:780px; margin:0 auto; }
-  .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-  .top a { color:var(--acc); text-decoration:none; font-size:.9rem; }
-  .mbtn { background:none; border:1px solid var(--line); border-radius:8px; color:var(--txt); font-size:1rem; padding:4px 10px; cursor:pointer; }
-  .mbtn:hover { border-color:var(--acc); }
-  h1 { font-size:1.35rem; } h1 span { color:var(--acc); }
-  .hint { font-size:.82rem; color:var(--mut); margin:6px 0 12px; line-height:1.6; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
-  canvas { width:100%; border-radius:8px; background:#0b1220; display:block; }
-  .ctl { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
-  label { display:block; font-size:.8rem; color:var(--mut); margin:10px 0 4px; }
-  label b { color:var(--txt); float:right; }
-  input[type=range]{ width:100%; accent-color:var(--acc); }
-  select { width:100%; padding:8px; border-radius:8px; background:#0f172a; color:var(--txt); border:1px solid var(--line); }
-  .btns { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
-  button.go { flex:1; padding:12px; border-radius:8px; border:none; font-weight:700; font-size:.95rem; cursor:pointer; min-width:150px; }
-  #bDengar { background:var(--acc); color:#111; }
-  #bDengar.off { background:#334155; color:var(--txt); }
-  .read { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
-  .read div { background:#0f172a; border:1px dashed #475569; border-radius:8px; padding:8px 4px; text-align:center; }
-  .read .v { font-size:1.05rem; color:var(--acc); font-weight:700; }
-  .read .k { font-size:.68rem; color:var(--mut); margin-top:2px; }
-  .simbar { display:flex; gap:10px; align-items:center; }
-  .simbar button { padding:9px 20px; border-radius:20px; border:1px solid var(--line); background:#0f172a; color:var(--txt); cursor:pointer; font-weight:700; font-size:.85rem; }
-  .simbar button.on { background:var(--acc); color:#111; border-color:var(--acc); }
-  .simbar button#bStop { background:#7f1d1d; border-color:#7f1d1d; color:#fff; }
-  .simbar span { font-size:.82rem; color:var(--mut); margin-left:auto; }
+  :root{ --bg:#0b1120; --card:#111c33; --txt:#e2e8f0; --dim:#94a3b8; --acc:#38bdf8; --amber:#fbbf24; }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,#16294d 0%,var(--bg) 60%);color:var(--txt);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+  header{padding:14px 20px;display:flex;align-items:center;gap:12px}
+  header a{color:var(--acc);text-decoration:none;font-weight:600}
+  .wrap{max-width:1080px;margin:0 auto;padding:6px 18px 30px;display:grid;grid-template-columns:1fr 300px;gap:16px}
+  @media(max-width:900px){.wrap{grid-template-columns:1fr}}
+  .card{background:rgba(17,28,51,.85);border:1px solid #1e3a5f;border-radius:16px;padding:14px;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+  canvas{width:100%;border-radius:10px;background:#070d1a;display:block}
+  .side{display:flex;flex-direction:column;gap:12px}
+  .panel{background:rgba(17,28,51,.85);border:1px solid #1e3a5f;border-radius:14px;padding:12px 14px}
+  .panel h3{margin:0 0 8px;font-size:14px;color:var(--acc);text-transform:uppercase;letter-spacing:.5px}
+  .row{margin:9px 0;font-size:14px}
+  .row label{display:flex;justify-content:space-between;margin-bottom:4px;color:var(--dim)}
+  .row label b{color:var(--txt)}
+  input[type=range]{width:100%;accent-color:var(--acc)}
+  select{width:100%;background:#0b1526;color:var(--txt);border:1px solid #2b4a75;border-radius:8px;padding:8px;font-size:14px}
+  .readout{background:#0b1526;border:1px solid #1e3a5f;border-radius:10px;padding:8px 10px;font-size:13px;margin:5px 0}
+  .readout b{color:var(--amber)}
+  .btnrow{display:flex;flex-wrap:wrap;gap:8px}
+  .sbtn{background:#1d3a63;color:var(--txt);border:1px solid #2b4a75;border-radius:10px;padding:9px 12px;font-size:13px;cursor:pointer;flex:1 1 auto}
+  .sbtn:hover{background:#274b7d}
+  .sbtn.on{background:#7c2d12;border-color:#f97316}
+  .sbtn.siren{background:#3b1d5e;border-color:#8b5cf6}
+  .sbtn.siren:hover{background:#4c256f}
+  .note{font-size:12px;color:var(--dim);line-height:1.5}
+  .simbar{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .simbar button{background:#1d3a63;border:1px solid #2b4a75;color:var(--txt);border-radius:10px;padding:8px 14px;cursor:pointer;font-size:14px}
+  .simbar button:hover{background:#274b7d}
+  .state{font-size:13px;color:var(--dim);margin-left:auto}
+  .mutebtn{position:fixed;top:12px;right:14px;z-index:50;background:#1d3a63;border:1px solid #2b4a75;color:#fff;border-radius:50%;width:42px;height:42px;font-size:18px;cursor:pointer}
 </style>
 </head>
 <body>
-<div class="top"><a href="../../index.html">← Semua simulasi</a><button id="bMute" class="mbtn" title="Suara on/off">🔊</button></div>
-<h1>Lab <span>Gelombang Bunyi</span></h1>
-<p class="hint">Geser <b>frekuensi</b> dan <b>amplitudo</b>, lalu tekan <b>Dengarkan nada</b> untuk mendengar sekaligus melihat gelombang yang keluar dari speaker. Coba dua mode tampilan!</p>
-<div class="card simbar">
-  <button id="bPlay" class="on">⏸ Pause</button>
-  <button id="bStop">⏹ Stop &amp; Reset</button>
-  <span id="simState">▶ Simulasi berjalan</span>
-</div>
-<div class="card"><canvas id="cv" width="680" height="330"></canvas></div>
-<div class="card">
-  <div class="ctl">
-    <div><label>Frekuensi <b id="fL">440 Hz</b></label><input type="range" id="fR" min="50" max="2000" step="10" value="440"></div>
-    <div><label>Amplitudo <b id="aL">70%</b></label><input type="range" id="aR" min="10" max="100" step="5" value="70"></div>
-    <div><label>Mode tampilan</label><select id="mode"><option value="cincin">Cincin gelombang</option><option value="partikel">Partikel udara</option></select></div>
-    <div><label>Laju bunyi di udara</label><select id="spd" disabled><option>343 m/s (tetap)</option></select></div>
+<button class="mutebtn" id="muteBtn" title="Bisukan / suarakan">🔊</button>
+<header><a href="../../index.html">← Phi-PhET</a><span style="color:#94a3b8">/ Lab Gelombang Bunyi 🚑</span></header>
+<div class="wrap">
+  <div class="card">
+    <canvas id="cv" width="680" height="380"></canvas>
+    <div class="simbar">
+      <button id="bPlay">⏸ Pause</button>
+      <button id="bStop">⏹ Stop &amp; Reset</button>
+      <span class="state" id="simState"></span>
+    </div>
   </div>
-  <div class="btns">
-    <button class="go" id="bDengar">🔊 Dengarkan nada</button>
+  <div class="side">
+    <div class="panel">
+      <h3>🎛️ Mode tampilan</h3>
+      <div class="row"><select id="mSel">
+        <option value="cincin">🎯 Cincin gelombang</option>
+        <option value="partikel">💨 Partikel udara</option>
+        <option value="osiloskop">📟 Osiloskop</option>
+        <option value="spektrum">📊 Spektrum frekuensi</option>
+        <option value="tali">🪢 Gelombang tali</option>
+      </select></div>
+      <div class="row"><label>Frekuensi <b id="fL">440 Hz</b></label>
+        <input type="range" id="fR" min="50" max="2000" value="440"></div>
+      <div class="row"><label>Amplitudo <b id="aL">60%</b></label>
+        <input type="range" id="aR" min="1" max="100" value="60"></div>
+    </div>
+    <div class="panel">
+      <h3>🌬️ Medium rambat</h3>
+      <div class="row"><select id="medSel">
+        <option value="343">🌬️ Udara — 343 m/s</option>
+        <option value="965">🎈 Helium — 965 m/s</option>
+        <option value="1480">🌊 Air — 1.480 m/s</option>
+        <option value="5960">🔩 Baja — 5.960 m/s</option>
+      </select></div>
+      <div class="note">Panjang gelombang λ = v / f. Medium lebih rapat → bunyi merambat lebih cepat → λ lebih panjang.</div>
+    </div>
+    <div class="panel">
+      <h3>🔊 Sistem suara</h3>
+      <div class="btnrow">
+        <button class="sbtn" id="bOnce">🔊 Dengarkan nada</button>
+        <button class="sbtn" id="bCont">🔁 Nada terus-menerus</button>
+      </div>
+      <div class="btnrow" style="margin-top:8px">
+        <button class="sbtn siren" id="bSiren">🚨 Sirene ambulans</button>
+      </div>
+      <div class="note" style="margin-top:8px">• <b>Dengarkan nada</b>: bunyi sekali ±2,5 detik.<br>• <b>Nada terus-menerus</b>: bunyi nonstop — geser frekuensi/amplitudo dan nadanya ikut berubah live!</div>
+    </div>
+    <div class="panel">
+      <h3>📏 Hasil ukur</h3>
+      <div class="readout">Frekuensi <b id="oF">440 Hz</b></div>
+      <div class="readout">Periode <b id="oT">2,27 ms</b></div>
+      <div class="readout">Panjang gelombang <b id="oLam">78,0 cm</b></div>
+      <div class="readout">Laju di <b id="oMed">udara</b>: <b id="oV">343 m/s</b></div>
+    </div>
   </div>
-  <div class="read">
-    <div><div class="v" id="oF">440 Hz</div><div class="k">Frekuensi (f)</div></div>
-    <div><div class="v" id="oT">2.3 ms</div><div class="k">Periode (T = 1/f)</div></div>
-    <div><div class="v" id="oLam">0.8 m</div><div class="k">Panjang gelombang (λ)</div></div>
-  </div>
-  <p class="hint">v = λ × f &nbsp;•&nbsp; Nada makin tinggi = frekuensi makin besar = gelombang makin rapat.</p>
 </div>
 <script>
-// ===== Efek suara khas lab bunyi =====
-const Snd={
-  ctx:null,muted:localStorage.getItem('phiphet_mute')==='1',osc:null,oscG:null,
-  ac(){if(!this.ctx)this.ctx=new(window.AudioContext||window.webkitAudioContext)();if(this.ctx.state==='suspended')this.ctx.resume();return this.ctx;},
-  tone(f,d,type,vol,slide){if(this.muted)return;try{
-    const c=this.ac(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();
-    o.type=type||'sine';o.frequency.setValueAtTime(f,t);
-    if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+d);
-    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.12,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+d+.06);
-    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+d+.1);}catch(e){}},
-  blip(){this.tone(660,.07,'sine',.07);},
-  tick(){this.tone(1200,.03,'square',.04);},
-  nadaStart(f){ if(this.muted)return; try{
-    const c=this.ac(); this.nadaStop();
-    this.osc=c.createOscillator(); this.oscG=c.createGain();
-    this.osc.type='sine'; this.osc.frequency.value=f;
-    this.oscG.gain.setValueAtTime(.0001,c.currentTime);
-    this.oscG.gain.exponentialRampToValueAtTime(.16,c.currentTime+.05);
-    this.osc.connect(this.oscG); this.oscG.connect(c.destination); this.osc.start();
-  }catch(e){} },
-  nadaStop(){ try{ if(this.osc){ const c=this.ac(),t=c.currentTime;
-    this.oscG.gain.cancelScheduledValues(t); this.oscG.gain.setValueAtTime(this.oscG.gain.value,t);
-    this.oscG.gain.exponentialRampToValueAtTime(.0001,t+.08);
-    const o=this.osc; setTimeout(()=>{try{o.stop();}catch(e){}},150); this.osc=null; } }catch(e){} },
-};
-function syncMuteBtn(){const b=document.getElementById('bMute');if(b)b.textContent=Snd.muted?'🔇':'🔊';}
-const cv=document.getElementById('cv'), cx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
-const V=343; // laju bunyi di udara (m/s)
-let f=440, amp=0.7, mode='cincin', playing=true, simT=0, phase=0;
-let rings=[], dengar=false;
-function labels(){
-  $('fL').textContent=Math.round(f)+' Hz';
-  $('aL').textContent=Math.round(amp*100)+'%';
-  $('oF').textContent=Math.round(f)+' Hz';
-  $('oT').textContent=(1000/f).toFixed(1)+' ms';
-  $('oLam').textContent=(V/f).toFixed(1)+' m';
-}
-['fR','aR'].forEach(id=>{$(id).oninput=()=>{f=+$('fR').value;amp=+$('aR').value/100;labels();};$(id).onchange=()=>Snd.tick();});
-$('mode').onchange=e=>{Snd.blip();mode=e.target.value;};
-labels();
-$('bDengar').onclick=()=>{
-  dengar=!dengar;
-  const b=$('bDengar');
-  if(dengar){ Snd.nadaStart(f); b.textContent='🔇 Hentikan nada'; b.classList.add('off'); }
-  else { Snd.nadaStop(); b.textContent='🔊 Dengarkan nada'; b.classList.remove('off'); }
+const cv=$('cv'), cx=cv.getContext('2d');
+// ---------- suara ----------
+const Snd={
+  ctx:null,muted:localStorage.getItem('phi_mute')==='1',cont:null,solo:null,
+  ac(){if(!this.ctx)this.ctx=new(window.AudioContext||window.webkitAudioContext)();if(this.ctx.state==='suspended')this.ctx.resume();return this.ctx;},
+  load(){this.muted=localStorage.getItem('phi_mute')==='1';this.paint();},
+  paint(){$('muteBtn').textContent=this.muted?'🔇':'🔊';},
+  toggleMute(){this.muted=!this.muted;localStorage.setItem('phi_mute',this.muted?'1':'0');this.paint();
+    if(this.muted){this.contStop(true);this.soloStop();
+      $('bCont').classList.remove('on');$('bCont').textContent='🔁 Nada terus-menerus';}},
+  blip(){if(this.muted)return;try{const c=this.ac(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type='square';o.frequency.value=700;g.gain.setValueAtTime(.07,t);g.gain.exponentialRampToValueAtTime(.001,t+.08);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.09);}catch(e){}},
+  tick(){if(this.muted)return;try{const c=this.ac(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=1200;g.gain.setValueAtTime(.05,t);g.gain.exponentialRampToValueAtTime(.001,t+.05);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.06);}catch(e){}},
+  // nada sekali (±2,5 detik)
+  once(f,amp){if(this.muted)return;this.contStop(true);this.soloStop();try{
+    const c=this.ac(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();
+    o.type='sine';o.frequency.value=f;const gv=.04+(amp/100)*.22;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(gv,t+.05);
+    g.gain.setValueAtTime(gv,t+2.2);g.gain.linearRampToValueAtTime(0,t+2.5);
+    o.connect(g).connect(c.destination);o.start(t);o.stop(t+2.6);this.solo={o,g};
+  }catch(e){}},
+  soloStop(){if(this.solo){try{this.solo.o.stop();}catch(e){}this.solo=null;}},
+  // nada terus-menerus (bisa diubah live)
+  contStart(f,amp){if(this.muted)return;this.soloStop();if(this.cont){this.contUpdate(f,amp);return;}try{
+    const c=this.ac(),o=c.createOscillator(),g=c.createGain();
+    o.type='sine';o.frequency.value=f;g.gain.value=.04+(amp/100)*.22;
+    o.connect(g).connect(c.destination);o.start();this.cont={o,g};
+  }catch(e){}},
+  contUpdate(f,amp){if(!this.cont||this.muted)return;try{
+    this.cont.o.frequency.setTargetAtTime(f,this.ac().currentTime,.03);
+    this.cont.g.gain.setTargetAtTime(.04+(amp/100)*.22,this.ac().currentTime,.03);
+  }catch(e){}},
+  contStop(silent){if(this.cont){try{this.cont.o.stop();}catch(e){}this.cont=null;}
+    if(!silent){$('bCont').classList.remove('on');$('bCont').textContent='🔁 Nada terus-menerus';}},
+  // sirene ambulans: raungan naik-turun khas
+  siren(){if(this.muted)return;this.contStop(true);this.soloStop();try{
+    const c=this.ac(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();
+    o.type='triangle';
+    o.frequency.setValueAtTime(700,t);
+    o.frequency.linearRampToValueAtTime(1400,t+.9);
+    o.frequency.linearRampToValueAtTime(700,t+1.8);
+    o.frequency.linearRampToValueAtTime(1400,t+2.7);
+    o.frequency.linearRampToValueAtTime(700,t+3.6);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.22,t+.1);
+    g.gain.setValueAtTime(.22,t+3.4);g.gain.linearRampToValueAtTime(0,t+3.7);
+    o.connect(g).connect(c.destination);o.start(t);o.stop(t+3.8);this.solo={o,g};
+    sirenFlash=3.8; // lampu sirene kedip cepat selama bunyi
+  }catch(e){}}
 };
-// ===== Transport =====
-function setPlaying(v){
-  playing=v;
-  $('bPlay').textContent=v?'⏸ Pause':'▶ Play';
-  $('bPlay').classList.toggle('on',v);
-  $('simState').textContent=v?'▶ Simulasi berjalan':'⏸ Dijeda';
-}
+// ---------- state ----------
+let f=440, amp=60, mode='cincin', vMed=343, medName='udara';
+let playing=true, simT=0, rings=[], parts=[], sirenFlash=0, gDt=.016;
+for(let i=0;i<130;i++)parts.push({x:Math.random()*cv.width,y:Math.random()*cv.height,ph:Math.random()*7});
+function setPlaying(v){playing=v;$('bPlay').textContent=v?'⏸ Pause':'▶ Play';$('simState').textContent=v?'▶ Simulasi berjalan':'⏸ Dijeda';}
 $('bPlay').onclick=()=>{Snd.blip();setPlaying(!playing);};
-$('bStop').onclick=()=>{Snd.blip();rings=[];phase=0;simT=0;setPlaying(false);if(dengar)$('bDengar').onclick();};
-
+$('bStop').onclick=()=>{Snd.blip();Snd.contStop();rings=[];sirenFlash=0;setPlaying(false);simT=0;
+  $('bCont').classList.remove('on');$('bCont').textContent='🔁 Nada terus-menerus';};
+// ---------- AMBULANS (menghadap kanan, sirene menyala) ----------
+function drawAmbulance(x,y,s){
+  cx.save(); cx.translate(x,y); cx.scale(s,s);
+  cx.fillStyle='rgba(0,0,0,.35)'; cx.beginPath(); cx.ellipse(64,96,62,8,0,0,7); cx.fill();
+  const bg=cx.createLinearGradient(0,20,0,88); bg.addColorStop(0,'#ffffff'); bg.addColorStop(1,'#cbd5e1');
+  cx.fillStyle=bg; cx.strokeStyle='#64748b'; cx.lineWidth=2;
+  cx.beginPath();
+  if(cx.roundRect)cx.roundRect(4,28,120,60,8); else cx.rect(4,28,120,60,8);
+  cx.fill(); cx.stroke();
+  cx.fillStyle='#dc2626'; cx.fillRect(4,58,120,10); // garis merah
+  cx.fillStyle='#7dd3fc'; cx.strokeStyle='#475569'; cx.lineWidth=1.5; // kaca depan
+  cx.beginPath(); cx.moveTo(92,32); cx.lineTo(116,32); cx.lineTo(116,56); cx.lineTo(92,56); cx.closePath(); cx.fill(); cx.stroke();
+  cx.fillStyle='#bae6fd'; cx.fillRect(14,36,22,18); cx.strokeRect(14,36,22,18); // kaca samping
+  cx.fillStyle='#fff'; cx.strokeStyle='#dc2626'; cx.lineWidth=2; // palang merah
+  cx.beginPath(); cx.arc(58,46,13,0,7); cx.fill(); cx.stroke();
+  cx.fillStyle='#dc2626'; cx.fillRect(53,38,10,16); cx.fillRect(50,41,16,10);
+  cx.fillStyle='#fff'; cx.fillRect(56.5,38,3,16); cx.fillRect(50,44.5,16,3);
+  cx.fillStyle='#fde68a'; cx.beginPath(); cx.arc(122,72,4,0,7); cx.fill(); // lampu depan
+  cx.fillStyle='#ef4444'; cx.fillRect(2,68,4,8); // lampu belakang
+  [30,98].forEach(wx=>{ // roda
+    cx.fillStyle='#1e293b'; cx.beginPath(); cx.arc(wx,90,15,0,7); cx.fill();
+    cx.fillStyle='#94a3b8'; cx.beginPath(); cx.arc(wx,90,6,0,7); cx.fill();
+    cx.strokeStyle='#475569'; cx.lineWidth=2;
+    for(let k=0;k<5;k++){const a=k/5*Math.PI*2;cx.beginPath();cx.moveTo(wx,90);cx.lineTo(wx+11*Math.cos(a),90+11*Math.sin(a));cx.stroke();}
+  });
+  // light bar + sirene kedip
+  const flashRate=sirenFlash>0?10:3.2;
+  const phase=Math.floor(simT*flashRate)%2;
+  cx.fillStyle='#334155';
+  if(cx.roundRect)cx.roundRect(46,14,36,12,4); else cx.rect(46,14,36,12,4);
+  cx.fill();
+  [{dx:55,col:'#ef4444',on:phase===0},{dx:73,col:'#3b82f6',on:phase===1}].forEach(d=>{
+    if(d.on){
+      const gl=cx.createRadialGradient(d.dx,12,2,d.dx,12,26);
+      gl.addColorStop(0,d.col); gl.addColorStop(1,'rgba(0,0,0,0)');
+      cx.globalAlpha=.55; cx.fillStyle=gl; cx.beginPath(); cx.arc(d.dx,12,26,0,7); cx.fill(); cx.globalAlpha=1;
+    }
+    cx.fillStyle=d.on?d.col:'#475569';
+    cx.beginPath(); cx.arc(d.dx,14,7,Math.PI,0); cx.fill();
+    cx.strokeStyle='#1e293b'; cx.lineWidth=1.5; cx.stroke();
+  });
+  cx.restore();
+}
+// ---------- loop ----------
 let last=performance.now();
 function step(now){
-  const dt=Math.min((now-last)/1000,.1); last=now;
-  if(playing){
-    simT+=dt; phase+=dt*f;
-    // pancarkan muka gelombang tiap satu periode
-    while(phase>=1){ phase-=1; rings.push({r:26}); }
-    const cVis=150; // laju visual di kanvas (px/detik)
-    for(const w of rings) w.r+=cVis*dt;
-    rings=rings.filter(w=>w.r<640);
-  }
-  draw();
-  requestAnimationFrame(step);
+  const dt=Math.min((now-last)/1000,.05); last=now; gDt=dt;
+  if(playing){simT+=dt; sirenFlash=Math.max(0,sirenFlash-dt);}
+  draw(); requestAnimationFrame(step);
 }
-function drawSpeaker(x,y){
-  // badan speaker
-  cx.fillStyle='#1e293b'; cx.strokeStyle='#475569'; cx.lineWidth=2;
-  cx.beginPath(); cx.roundRect?cx.roundRect(x-34,y-52,52,104,8):cx.rect(x-34,y-52,52,104,8); cx.fill(); cx.stroke();
-  // membran bergetar mengikuti fase nada
-  const vib=playing?Math.sin(simT*2*Math.PI*Math.min(f,40)/40*4)*8*amp:0;
-  cx.fillStyle='#334155';
-  cx.beginPath(); cx.ellipse(x+18+vib,y,14,34,0,0,7); cx.fill();
-  cx.strokeStyle='#fbbf24'; cx.lineWidth=2; cx.stroke();
-  cx.fillStyle='#94a3b8'; cx.font='13px sans-serif'; cx.fillText('SPEAKER',x-32,y+70);
-}
+function fmtLen(m){return m>=1?m.toFixed(1).replace('.',',')+' m':(m*100).toFixed(1).replace('.',',')+' cm';}
 function draw(){
   cx.clearRect(0,0,cv.width,cv.height);
-  const sy=118;
-  drawSpeaker(70,sy);
+  const fVis=Math.max(1.2,Math.min(9,f/220)); // frekuensi visual
+  const spd=2*Math.PI*fVis;
   if(mode==='cincin'){
-    for(const w of rings){
-      const al=Math.max(0,1-w.r/640);
-      cx.strokeStyle=`rgba(56,189,248,${(al*.8).toFixed(2)})`;
-      cx.lineWidth=2+3*al;
-      cx.beginPath(); cx.arc(88,sy,w.r,-1.05,1.05); cx.stroke();
-      cx.strokeStyle=`rgba(251,191,36,${(al*.35).toFixed(2)})`;
-      cx.lineWidth=1.5;
-      cx.beginPath(); cx.arc(88,sy,w.r+7,-1.05,1.05); cx.stroke();
-    }
+    const ax=46, ay=162, spx=ax+64, spy=ay+8;
+    drawAmbulance(ax,ay,1);
+    if(playing&&rings.length<14&&Math.random()<.25)rings.push({r:14,a:1});
+    rings.forEach(r=>{if(playing){r.r+=spd*9*gDt;r.a-=.008;}});
+    rings=rings.filter(r=>r.a>0&&r.r<560);
+    rings.forEach(r=>{
+      cx.strokeStyle='rgba(56,189,248,'+(r.a*(0.35+0.65*amp/100))+')';
+      cx.lineWidth=2+3*(amp/100)*r.a;
+      cx.beginPath(); cx.arc(spx,spy,r.r,0,7); cx.stroke();
+    });
     cx.fillStyle='#94a3b8'; cx.font='13px sans-serif';
-    cx.fillText('← rapat = frekuensi tinggi • renggang = frekuensi rendah →',150,36);
-  } else {
-    // partikel udara: rapatan & renggangan
-    const lamV=110, k=2*Math.PI/lamV, om=2*Math.PI*(150/lamV);
-    for(let gy=0;gy<5;gy++){
-      const y=52+gy*26;
-      for(let gx=0;gx<46;gx++){
-        const x0=110+gx*12.6;
-        const disp=playing?Math.sin(k*x0-om*simT)*10*amp:0;
-        const dens=Math.cos(k*(x0+disp)-om*simT); // >0 rapatan
-        const heat=Math.max(0,dens);
-        cx.fillStyle=`rgba(${Math.round(56+heat*199)},${Math.round(189-heat*60)},${Math.round(248-heat*170)},${(.35+heat*.55).toFixed(2)})`;
-        cx.beginPath(); cx.arc(x0+disp,y,2.6,0,7); cx.fill();
+    cx.fillText('Cincin = muka gelombang • jarak antar cincin = λ ('+fmtLen(vMed/f)+')',16,cv.height-14);
+  } else if(mode==='partikel'){
+    const ax=26, ay=162;
+    drawAmbulance(ax,ay,.85);
+    const ox=ax+118*.85+8;
+    parts.forEach(p=>{
+      let px=p.x, dens=0;
+      if(p.x>ox){
+        if(playing){
+          const k=2*Math.PI/(vMed/f)*((cv.width-ox)/340);
+          px=p.x+Math.sin(k*(p.x-ox)-spd*simT)*(6+22*amp/100);
+          dens=.5+.5*Math.sin(k*(px-ox)-spd*simT);
+        }
+        cx.fillStyle='rgba(125,211,252,'+(.25+.55*Math.max(0,dens))+')';
+        cx.beginPath(); cx.arc(px,p.y,2.2+2.4*Math.max(0,dens),0,7); cx.fill();
+      } else {
+        cx.fillStyle='rgba(125,211,252,.18)';
+        cx.beginPath(); cx.arc(px,p.y,2.2,0,7); cx.fill();
       }
-    }
+    });
     cx.fillStyle='#94a3b8'; cx.font='13px sans-serif';
-    cx.fillText('kuning terang = rapatan (tekanan tinggi) • biru = renggangan',130,36);
-    cx.fillText('Udara sendiri tidak ikut pergi — partikelnya hanya bergetar di tempat!',130,196);
-  }
-  // grafik gelombang di bawah
-  const gy0=268, gh=44;
-  cx.strokeStyle='#243353'; cx.lineWidth=1;
-  cx.beginPath(); cx.moveTo(20,gy0); cx.lineTo(660,gy0); cx.stroke();
-  cx.strokeStyle='#fbbf24'; cx.lineWidth=2.5; cx.beginPath();
-  for(let x=20;x<=660;x+=3){
-    const tt=playing?simT:simT;
-    const y=gy0-Math.sin((x-20)/640*8*Math.PI-tt*2*Math.PI*Math.min(f/440,3))*gh*amp;
-    x===20?cx.moveTo(x,y):cx.lineTo(x,y);
-  }
-  cx.stroke();
-  cx.fillStyle='#94a3b8'; cx.font='13px sans-serif';
-  cx.fillText('bentuk gelombang terhadap waktu →',20,gy0+gh+18);
-  // badge nada aktif
-  if(dengar){
-    cx.fillStyle='rgba(251,191,36,.14)'; cx.strokeStyle='#fbbf24'; cx.lineWidth=2;
-    cx.beginPath(); cx.roundRect?cx.roundRect(520,8,140,30,15):cx.rect(520,8,140,30,15); cx.fill(); cx.stroke();
-    const pul=.6+.4*Math.abs(Math.sin(simT*6));
-    cx.fillStyle=`rgba(251,191,36,${pul.toFixed(2)})`; cx.font='bold 14px sans-serif';
-    cx.fillText('♪ '+Math.round(f)+' Hz',548,29);
+    cx.fillText('Titik terang & besar = rapatan (tekanan tinggi) • redup & kecil = renggangan',16,cv.height-14);
+  } else if(mode==='osiloskop'){
+    drawAmbulance(16,18,.55);
+    const sx=210, sy=40, sw=cv.width-sx-24, sh=cv.height-sy-60;
+    cx.fillStyle='#04140a'; cx.strokeStyle='#1e3a5f'; cx.lineWidth=2;
+    cx.beginPath();
+    if(cx.roundRect)cx.roundRect(sx,sy,sw,sh,10); else cx.rect(sx,sy,sw,sh);
+    cx.fill(); cx.stroke();
+    cx.strokeStyle='rgba(34,197,94,.25)'; cx.lineWidth=1;
+    for(let i=1;i<8;i++){cx.beginPath();cx.moveTo(sx+sw*i/8,sy);cx.lineTo(sx+sw*i/8,sy+sh);cx.stroke();}
+    for(let j=1;j<6;j++){cx.beginPath();cx.moveTo(sx,sy+sh*j/6);cx.lineTo(sx+sw,sy+sh*j/6);cx.stroke();}
+    cx.strokeStyle='#4ade80'; cx.lineWidth=3; cx.shadowColor='#4ade80'; cx.shadowBlur=8;
+    cx.beginPath();
+    const A=(sh/2-14)*(amp/100);
+    for(let px2=0;px2<=sw;px2+=2){
+      const ph=(px2/sw)*3*2*Math.PI-(playing?simT*spd*2:0);
+      const yy=sy+sh/2-A*Math.sin(ph);
+      if(px2===0)cx.moveTo(sx+px2,yy); else cx.lineTo(sx+px2,yy);
+    }
+    cx.stroke(); cx.shadowBlur=0;
+    cx.fillStyle='#4ade80'; cx.font='13px sans-serif';
+    cx.fillText('CH1 • '+f+' Hz • skala waktu otomatis',sx+10,sy+sh-10);
+    cx.fillStyle='#94a3b8';
+    cx.fillText('Seperti osiloskop asli: sumbu datar = waktu, tegak = tekanan udara',16,cv.height-14);
+  } else if(mode==='spektrum'){
+    drawAmbulance(16,18,.55);
+    const bx=210, bw=cv.width-bx-30, base=cv.height-60;
+    cx.fillStyle='#94a3b8'; cx.font='13px sans-serif';
+    cx.fillText('Kandungan frekuensi bunyi (seperti spectrum analyzer):',bx,40);
+    const maxH=base-70;
+    [1,2,3,4,5,6].forEach((h,i)=>{
+      const fh=f*h; if(fh>20000)return;
+      const x=bx+20+i*(bw-40)/5;
+      const jit=playing?Math.sin(simT*7+i*2)*6:0;
+      const hh=Math.max(8,(maxH/(h*h*.9+.6))+jit);
+      const gr=cx.createLinearGradient(0,base-hh,0,base);
+      gr.addColorStop(0,i===0?'#fbbf24':'#38bdf8'); gr.addColorStop(1,i===0?'#b45309':'#0c4a6e');
+      cx.fillStyle=gr;
+      cx.beginPath();
+      if(cx.roundRect)cx.roundRect(x-16,base-hh,32,hh,5); else cx.rect(x-16,base-hh,32,hh);
+      cx.fill();
+      cx.fillStyle=i===0?'#fbbf24':'#94a3b8'; cx.font=(i===0?'bold ':'')+'12px sans-serif';
+      cx.textAlign='center'; cx.fillText(fh>=1000?(fh/1000).toFixed(1)+'k':Math.round(fh)+'',x,base+16);
+      cx.fillText('×'+h,x,base+30); cx.textAlign='left';
+    });
+    cx.fillStyle='#fbbf24'; cx.font='bold 13px sans-serif';
+    cx.fillText('● dominan di '+f+' Hz (nada dasar)',bx,base+52);
+  } else if(mode==='tali'){
+    drawAmbulance(16,18,.55);
+    const x0=220, x1=cv.width-30, yc=190;
+    cx.fillStyle='#475569'; cx.fillRect(x0-6,yc-70,6,150); cx.fillRect(x1,yc-70,6,150);
+    cx.fillStyle='#94a3b8'; cx.font='13px sans-serif';
+    cx.fillText('Tali digetarkan '+f+'× per detik oleh sirene ambulans',x0,yc-84);
+    const L=x1-x0, k=2*Math.PI/(L/2.5), A=10+40*amp/100;
+    const ropeY=px2=>{
+      const env=Math.sin(Math.PI*px2/L)*.85+.15;
+      return yc-A*env*Math.sin(k*px2-(playing?spd*simT:0));
+    };
+    cx.strokeStyle='rgba(56,189,248,.18)'; cx.lineWidth=11; cx.beginPath();
+    for(let px2=0;px2<=L;px2+=4){const yy=ropeY(px2);if(px2===0)cx.moveTo(x0+px2,yy);else cx.lineTo(x0+px2,yy);}
+    cx.stroke();
+    cx.strokeStyle='#7dd3fc'; cx.lineWidth=4; cx.beginPath();
+    for(let px2=0;px2<=L;px2+=4){const yy=ropeY(px2);if(px2===0)cx.moveTo(x0+px2,yy);else cx.lineTo(x0+px2,yy);}
+    cx.stroke();
+    const hy=playing?yc-A*Math.sin(-spd*simT):yc; // tangan penggetar
+    cx.fillStyle='#fbbf24'; cx.beginPath(); cx.arc(x0-6,hy,9,0,7); cx.fill();
+    cx.strokeStyle='#92400e'; cx.lineWidth=2; cx.stroke();
+    cx.fillStyle='#94a3b8';
+    cx.fillText('Gelombang transversal: arah getar ⊥ arah rambat →',16,cv.height-14);
   }
 }
-syncMuteBtn();
-$('bMute').onclick=()=>{
-  Snd.muted=!Snd.muted;
-  localStorage.setItem('phiphet_mute',Snd.muted?'1':'0');
-  if(Snd.muted&&dengar)$('bDengar').onclick();
-  syncMuteBtn(); Snd.blip();
+// ---------- UI ----------
+function labels(){
+  $('fL').textContent=f+' Hz'; $('aL').textContent=amp+'%';
+  $('oF').textContent=f+' Hz';
+  $('oT').textContent=(1000/f).toFixed(2).replace('.',',')+' ms';
+  $('oLam').textContent=fmtLen(vMed/f);
+  $('oV').textContent=vMed.toLocaleString('id-ID')+' m/s'; $('oMed').textContent=medName;
+}
+$('fR').oninput=()=>{f=+$('fR').value;labels();Snd.contUpdate(f,amp);};
+$('fR').onchange=()=>Snd.tick();
+$('aR').oninput=()=>{amp=+$('aR').value;labels();Snd.contUpdate(f,amp);};
+$('aR').onchange=()=>Snd.tick();
+$('mSel').onchange=e=>{mode=e.target.value;Snd.blip();};
+const medNames={'343':'udara','965':'helium','1480':'air','5960':'baja'};
+$('medSel').onchange=e=>{vMed=+e.target.value;medName=medNames[e.target.value];Snd.blip();labels();};
+$('bOnce').onclick=()=>{Snd.blip();setTimeout(()=>Snd.once(f,amp),120);};
+$('bCont').onclick=()=>{
+  if(Snd.cont){Snd.contStop();$('bCont').classList.remove('on');$('bCont').textContent='🔁 Nada terus-menerus';}
+  else{Snd.contStart(f,amp);if(Snd.cont){$('bCont').classList.add('on');$('bCont').textContent='⏹ Hentikan nada';}}
 };
+$('bSiren').onclick=()=>{Snd.siren();};
+$('muteBtn').onclick=()=>Snd.toggleMute();
+Snd.load(); labels(); setPlaying(true);
 requestAnimationFrame(step);
 </script>
 </body>

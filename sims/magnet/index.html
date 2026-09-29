@@ -5,237 +5,318 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lab Magnet &amp; Induksi — Phi-PhET</title>
 <style>
-  :root { --bg:#0f172a; --card:#1e293b; --acc:#fbbf24; --acc2:#38bdf8; --txt:#e2e8f0; --mut:#94a3b8; --line:#334155; }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,sans-serif; padding:16px; max-width:780px; margin:0 auto; }
-  .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-  .top a { color:var(--acc); text-decoration:none; font-size:.9rem; }
-  .mbtn { background:none; border:1px solid var(--line); border-radius:8px; color:var(--txt); font-size:1rem; padding:4px 10px; cursor:pointer; }
-  .mbtn:hover { border-color:var(--acc); }
-  h1 { font-size:1.35rem; } h1 span { color:var(--acc); }
-  .hint { font-size:.82rem; color:var(--mut); margin:6px 0 12px; line-height:1.6; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
-  canvas { width:100%; border-radius:8px; background:#0b1220; display:block; touch-action:none; cursor:grab; }
-  .ctl { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
-  label { display:block; font-size:.8rem; color:var(--mut); margin:10px 0 4px; }
-  label b { color:var(--txt); float:right; }
-  input[type=range]{ width:100%; accent-color:var(--acc); }
-  .btns { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
-  button.go { flex:1; padding:12px; border-radius:8px; border:none; font-weight:700; font-size:.95rem; cursor:pointer; min-width:150px; }
-  #bFlip { background:var(--acc); color:#111; }
-  #bDemo { background:#334155; color:var(--txt); }
-  .read { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
-  .read div { background:#0f172a; border:1px dashed #475569; border-radius:8px; padding:8px 4px; text-align:center; }
-  .read .v { font-size:1.05rem; color:var(--acc); font-weight:700; }
-  .read .k { font-size:.68rem; color:var(--mut); margin-top:2px; }
-  #cellI { border-color:#38bdf8 !important; box-shadow:0 0 0 1px #38bdf8; }
-  #cellI .v { color:var(--acc2) !important; }
-  .simbar { display:flex; gap:10px; align-items:center; }
-  .simbar button { padding:9px 20px; border-radius:20px; border:1px solid var(--line); background:#0f172a; color:var(--txt); cursor:pointer; font-weight:700; font-size:.85rem; }
-  .simbar button.on { background:var(--acc); color:#111; border-color:var(--acc); }
-  .simbar button#bStop { background:#7f1d1d; border-color:#7f1d1d; color:#fff; }
-  .simbar span { font-size:.82rem; color:var(--mut); margin-left:auto; }
+  :root{ --bg:#0b1120; --card:#111c33; --txt:#e2e8f0; --dim:#94a3b8; --acc:#38bdf8; --amber:#fbbf24; }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#3b1d5e 0%,var(--bg) 60%);color:var(--txt);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+  header{padding:14px 20px;display:flex;align-items:center;gap:12px}
+  header a{color:var(--acc);text-decoration:none;font-weight:600}
+  .wrap{max-width:1080px;margin:0 auto;padding:6px 18px 30px;display:grid;grid-template-columns:1fr 300px;gap:16px}
+  @media(max-width:900px){.wrap{grid-template-columns:1fr}}
+  .card{background:rgba(17,28,51,.85);border:1px solid #1e3a5f;border-radius:16px;padding:14px;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+  canvas{width:100%;border-radius:10px;background:#070d1a;display:block;cursor:grab}
+  .side{display:flex;flex-direction:column;gap:12px}
+  .panel{background:rgba(17,28,51,.85);border:1px solid #1e3a5f;border-radius:14px;padding:12px 14px}
+  .panel h3{margin:0 0 8px;font-size:14px;color:var(--acc);text-transform:uppercase;letter-spacing:.5px}
+  .row{margin:9px 0;font-size:14px}
+  .row label{display:flex;justify-content:space-between;margin-bottom:4px;color:var(--dim)}
+  .row label b{color:var(--txt)}
+  input[type=range]{width:100%;accent-color:var(--acc)}
+  select{width:100%;background:#0b1526;color:var(--txt);border:1px solid #2b4a75;border-radius:8px;padding:8px;font-size:14px}
+  .readout{background:#0b1526;border:1px solid #1e3a5f;border-radius:10px;padding:8px 10px;font-size:13px;margin:5px 0}
+  .readout b{color:var(--amber)}
+  .btnrow{display:flex;flex-wrap:wrap;gap:8px}
+  .sbtn{background:#1d3a63;color:var(--txt);border:1px solid #2b4a75;border-radius:10px;padding:9px 12px;font-size:14px;cursor:pointer;flex:1 1 auto}
+  .sbtn:hover{background:#274b7d}
+  .note{font-size:12px;color:var(--dim);line-height:1.5}
+  .simbar{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .simbar button{background:#1d3a63;border:1px solid #2b4a75;color:var(--txt);border-radius:10px;padding:8px 14px;cursor:pointer;font-size:14px}
+  .simbar button:hover{background:#274b7d}
+  .state{font-size:13px;color:var(--dim);margin-left:auto}
+  .mutebtn{position:fixed;top:12px;right:14px;z-index:50;background:#1d3a63;border:1px solid #2b4a75;color:#fff;border-radius:50%;width:42px;height:42px;font-size:18px;cursor:pointer}
 </style>
 </head>
 <body>
-<div class="top"><a href="../../index.html">← Semua simulasi</a><button id="bMute" class="mbtn" title="Suara on/off">🔊</button></div>
-<h1>Lab <span>Magnet &amp; Induksi</span></h1>
-<p class="hint"><b>Seret magnet</b> mendekati &amp; menjauhi kumparan — arus induksi muncul hanya saat magnet <b>bergerak</b>! Coba gerakkan cepat vs pelan, lalu balik kutubnya.</p>
-<div class="card simbar">
-  <button id="bPlay" class="on">⏸ Pause</button>
-  <button id="bStop">⏹ Stop &amp; Reset</button>
-  <span id="simState">▶ Simulasi berjalan</span>
-</div>
-<div class="card"><canvas id="cv" width="680" height="360"></canvas></div>
-<div class="card">
-  <div class="ctl">
-    <div><label>Jumlah lilitan kumparan <b id="nL">200 lilitan</b></label><input type="range" id="nR" min="50" max="500" step="25" value="200"></div>
-    <div><label>Kekuatan magnet <b id="mL">100%</b></label><input type="range" id="mR" min="20" max="150" step="10" value="100"></div>
+<button class="mutebtn" id="muteBtn" title="Bisukan / suarakan">🔊</button>
+<header><a href="../../index.html">← Phi-PhET</a><span style="color:#94a3b8">/ Lab Magnet &amp; Induksi 🧲</span></header>
+<div class="wrap">
+  <div class="card">
+    <canvas id="cv" width="680" height="380"></canvas>
+    <div class="simbar">
+      <button id="bPlay">⏸ Pause</button>
+      <button id="bStop">⏹ Stop &amp; Reset</button>
+      <span class="state" id="simState"></span>
+    </div>
   </div>
-  <div class="btns">
-    <button class="go" id="bFlip">🧲 ⇄ Balik kutub magnet</button>
-    <button class="go" id="bDemo">🤖 Demo gerak otomatis</button>
+  <div class="side">
+    <div class="panel">
+      <h3>🧲 Magnet</h3>
+      <div class="row"><label>Kekuatan magnet <b id="bL">100%</b></label>
+        <input type="range" id="bR" min="10" max="200" value="100"></div>
+      <div class="row"><label>Gerak otomatis <b id="spdL">✋ Manual</b></label>
+        <select id="spdSel">
+          <option value="0">✋ Manual — seret magnetnya</option>
+          <option value="0.9">🐢 Lambat</option>
+          <option value="1.8">🚶 Sedang</option>
+          <option value="2.8">🏃 Cepat</option>
+          <option value="4.2">🚀 Sangat cepat</option>
+          <option value="6">⚡ Cepat sekali</option>
+        </select></div>
+      <div class="btnrow"><button class="sbtn" id="bFlip">🔄 Balik kutub (N⇄S)</button></div>
+      <div class="note" style="margin-top:8px">Seret magnet mendekati/menjauhi kumparan, atau pilih kecepatan gerak otomatis. Makin cepat magnet bergerak → lampu makin terang!</div>
+    </div>
+    <div class="panel">
+      <h3>🌀 Kumparan</h3>
+      <div class="row"><label>Jumlah lilitan <b id="nL">200</b></label>
+        <input type="range" id="nR" min="50" max="500" step="10" value="200"></div>
+      <div class="note">Lilitan makin banyak → kumparan tampil makin tebal &amp; GGL induksi makin besar (ε = −N·ΔΦ/Δt).</div>
+    </div>
+    <div class="panel">
+      <h3>📏 Hasil ukur</h3>
+      <div class="readout">Fluks magnet <b id="oPhi">0,0 mWb</b></div>
+      <div class="readout">B di kumparan <b id="oB">0,0 mT</b></div>
+      <div class="readout">GGL induksi <b id="oEmf">0,0 mV</b></div>
+      <div class="readout">Arus induksi <b id="oI">0,0 mA</b></div>
+    </div>
   </div>
-  <div class="read">
-    <div id="cellI"><div class="v" id="oI">0.0 mA</div><div class="k">Arus induksi (I)</div></div>
-    <div><div class="v" id="oE">0.0 mV</div><div class="k">GGL induksi (ε)</div></div>
-    <div><div class="v" id="oF">0.0 mWb</div><div class="k">Fluks magnet (Φ)</div></div>
-  </div>
-  <p class="hint">Hukum Faraday: ε = −N × ΔΦ/Δt &nbsp;•&nbsp; Makin cepat gerak &amp; makin banyak lilitan = arus makin besar.</p>
 </div>
 <script>
-// ===== Efek suara khas lab magnet =====
-const Snd={
-  ctx:null,muted:localStorage.getItem('phiphet_mute')==='1',
-  ac(){if(!this.ctx)this.ctx=new(window.AudioContext||window.webkitAudioContext)();if(this.ctx.state==='suspended')this.ctx.resume();return this.ctx;},
-  tone(f,d,type,vol,slide){if(this.muted)return;try{
-    const c=this.ac(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();
-    o.type=type||'sine';o.frequency.setValueAtTime(f,t);
-    if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+d);
-    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.12,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+d+.06);
-    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+d+.1);}catch(e){}},
-  blip(){this.tone(660,.07,'sine',.07);},
-  click(){this.tone(320,.06,'square',.08,180);},
-  thunk(){this.tone(140,.18,'sine',.14,70);},
-  tick(){this.tone(1200,.03,'square',.04);},
-};
-function syncMuteBtn(){const b=document.getElementById('bMute');if(b)b.textContent=Snd.muted?'🔇':'🔊';}
-const cv=document.getElementById('cv'), cx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
-// ===== Model fisika (disederhanakan untuk visualisasi) =====
-const COIL_X=470, MAG_Y=130, MAG_W=150, MAG_H=56;
-let magX=140, magVX=0, flipped=false, N=200, mStr=1.0;
-let playing=true, simT=0, demo=false, demoT=0;
-let Phi=0, PhiPrev=0, emf=0, emfS=0, firstPhi=true, thunkCool=0;
-let dragging=false, dragOff=0;
-const Rcoil=12; // hambatan kumparan (ohm)
-// Medan magnet di posisi kumparan: model dipol B = B0 / (1+(d/d0)^2)^1.5
-function Bfield(mx){
-  const d=Math.abs(COIL_X-mx)/100; // "meter"
-  const B0=0.06*mStr; // 60 mT di permukaan
-  const sgn=flipped?-1:1;
-  return sgn*B0/Math.pow(1+Math.pow(d/0.45,2),1.5);
-}
-function labels(){
-  $('nL').textContent=Math.round(N)+' lilitan';
-  $('mL').textContent=Math.round(mStr*100)+'%';
-}
-$('nR').oninput=e=>{N=+$('nR').value;labels();}; $('nR').onchange=()=>Snd.tick();
-$('mR').oninput=e=>{mStr=+$('mR').value/100;labels();}; $('mR').onchange=()=>Snd.tick();
-labels();
-$('bFlip').onclick=()=>{Snd.click();flipped=!flipped;};
-$('bDemo').onclick=()=>{Snd.blip();demo=!demo;demoT=0;$('bDemo').textContent=demo?'⏹ Hentikan demo':'🤖 Demo gerak otomatis';};
-// ===== Seret magnet =====
-function evX(e){const r=cv.getBoundingClientRect();return (e.touches?e.touches[0].clientX:e.clientX-r.left)*(cv.width/r.width);}
-function magHit(x){return x>magX-MAG_W/2-14&&x<magX+MAG_W/2+14;}
-cv.addEventListener('pointerdown',e=>{const x=evX(e);if(magHit(x)){dragging=true;dragOff=x-magX;demo=false;$('bDemo').textContent='🤖 Demo gerak otomatis';Snd.blip();cv.style.cursor='grabbing';}});
-addEventListener('pointermove',e=>{if(!dragging)return;const x=evX(e);magX=Math.max(80,Math.min(360,x-dragOff));});
-addEventListener('pointerup',()=>{dragging=false;cv.style.cursor='grab';});
-// ===== Transport =====
-function setPlaying(v){
-  playing=v;
-  $('bPlay').textContent=v?'⏸ Pause':'▶ Play';
-  $('bPlay').classList.toggle('on',v);
-  $('simState').textContent=v?'▶ Simulasi berjalan':'⏸ Dijeda';
-}
+const cv=$('cv'), cx=cv.getContext('2d');
+// ---------- suara ----------
+const Snd={
+  ctx:null,muted:localStorage.getItem('phi_mute')==='1',humOsc:null,humGain:null,
+  ac(){if(!this.ctx)this.ctx=new(window.AudioContext||window.webkitAudioContext)();if(this.ctx.state==='suspended')this.ctx.resume();return this.ctx;},
+  load(){this.muted=localStorage.getItem('phi_mute')==='1';this.paint();},
+  paint(){$('muteBtn').textContent=this.muted?'🔇':'🔊';},
+  toggleMute(){this.muted=!this.muted;localStorage.setItem('phi_mute',this.muted?'1':'0');this.paint();if(this.muted)this.hum(0);},
+  blip(){if(this.muted)return;try{const c=this.ac(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type='square';o.frequency.value=700;g.gain.setValueAtTime(.07,t);g.gain.exponentialRampToValueAtTime(.001,t+.08);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.09);}catch(e){}},
+  tick(){if(this.muted)return;try{const c=this.ac(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=1200;g.gain.setValueAtTime(.05,t);g.gain.exponentialRampToValueAtTime(.001,t+.05);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.06);}catch(e){}},
+  hum(level){ // dengung induksi: makin besar arus makin nyaring & tinggi
+    if(this.muted)level=0;
+    try{
+      if(level<.01){if(this.humOsc){this.humOsc.stop();this.humOsc=null;this.humGain=null;}return;}
+      const c=this.ac();
+      if(!this.humOsc){const o=c.createOscillator(),g=c.createGain();o.type='sawtooth';o.frequency.value=80;g.gain.value=0;o.connect(g).connect(c.destination);o.start();this.humOsc=o;this.humGain=g;}
+      this.humOsc.frequency.setTargetAtTime(70+level*500,c.currentTime,.05);
+      this.humGain.gain.setTargetAtTime(level*.06,c.currentTime,.05);
+    }catch(e){}
+  }
+};
+// ---------- state ----------
+let mx=220, my=180, flip=false, N=200, B0=0.5, Bstr=1, demoW=0;
+let playing=true, simT=0, dragging=false, dragOff=0;
+let phi=0, emfSm=0, Ism=0;
+const Rcoil=12, Acoil=0.02, d0=0.45, COIL_X=450, COIL_Y=180;
+const spdNames={'0':'✋ Manual','0.9':'🐢 Lambat','1.8':'🚶 Sedang','2.8':'🏃 Cepat','4.2':'🚀 Sangat cepat','6':'⚡ Cepat sekali'};
+function setPlaying(v){playing=v;$('bPlay').textContent=v?'⏸ Pause':'▶ Play';$('simState').textContent=v?'▶ Simulasi berjalan':'⏸ Dijeda';}
 $('bPlay').onclick=()=>{Snd.blip();setPlaying(!playing);};
-$('bStop').onclick=()=>{Snd.blip();magX=140;magVX=0;emfS=0;Phi=0;PhiPrev=0;firstPhi=true;demo=false;$('bDemo').textContent='🤖 Demo gerak otomatis';setPlaying(false);};
-
+$('bStop').onclick=()=>{Snd.blip();Snd.hum(0);mx=220;flip=false;emfSm=0;Ism=0;setPlaying(false);
+  $('spdSel').value='0';demoW=0;$('spdL').textContent=spdNames['0'];};
+$('bR').oninput=()=>{Bstr=+$('bR').value/100;$('bL').textContent=$('bR').value+'%';};
+$('bR').onchange=()=>Snd.tick();
+$('nR').oninput=()=>{N=+$('nR').value;$('nL').textContent=N;};
+$('nR').onchange=()=>Snd.tick();
+$('spdSel').onchange=e=>{demoW=+e.target.value;$('spdL').textContent=spdNames[e.target.value];Snd.blip();};
+$('bFlip').onclick=()=>{Snd.blip();flip=!flip;};
+// seret magnet
+function evX(e){const r=cv.getBoundingClientRect();return (e.clientX-r.left)*(cv.width/r.width);}
+cv.addEventListener('pointerdown',e=>{const x=evX(e);
+  if(Math.abs(x-mx)<70){dragging=true;dragOff=x-mx;cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing';}});
+cv.addEventListener('pointermove',e=>{if(dragging){mx=Math.max(80,Math.min(400,evX(e)-dragOff));}});
+cv.addEventListener('pointerup',()=>{dragging=false;cv.style.cursor='grab';});
+// ---------- fisika ----------
+function fieldAtCoil(){
+  const d=Math.abs(mx-COIL_X)/100;
+  const B=B0*Bstr/Math.pow(1+(d/d0)*(d/d0),1.5);
+  return {B, d};
+}
+function stepPhysics(dt){
+  const {B}=fieldAtCoil();
+  const phiNow=N*B*Acoil;
+  const alpha=1-Math.exp(-dt/0.12);
+  const emfRaw=-(phiNow-phi)/Math.max(dt,1e-4);
+  emfSm+=(emfRaw-emfSm)*alpha;
+  phi=phiNow;
+  Ism+=(emfSm/Rcoil-Ism)*alpha;
+}
+// ---------- gambar ----------
+function drawMagnet(){
+  const w=120,h=46,x=mx-w/2,y=my-h/2;
+  // aura magnet
+  const {B}=fieldAtCoil();
+  const aura=Math.min(1,B/0.02);
+  if(aura>0.02){
+    const ag=cx.createRadialGradient(mx,my,10,mx,my,110);
+    ag.addColorStop(0,'rgba(168,85,247,'+(.28*aura)+')');ag.addColorStop(1,'rgba(168,85,247,0)');
+    cx.fillStyle=ag;cx.beginPath();cx.arc(mx,my,110,0,7);cx.fill();
+  }
+  // bayangan
+  cx.fillStyle='rgba(0,0,0,.4)';cx.beginPath();cx.ellipse(mx,y+h+8,w/2,7,0,0,7);cx.fill();
+  // bodi metalik
+  const mg=cx.createLinearGradient(0,y,0,y+h);
+  mg.addColorStop(0,'#f1f5f9');mg.addColorStop(.35,'#cbd5e1');mg.addColorStop(.65,'#94a3b8');mg.addColorStop(1,'#64748b');
+  cx.fillStyle=mg;cx.strokeStyle='#e2e8f0';cx.lineWidth=2;
+  cx.beginPath();
+  if(cx.roundRect)cx.roundRect(x,y,w,h,9);else cx.rect(x,y,w,h);
+  cx.fill();cx.stroke();
+  // kutub
+  const leftN=flip; // kiri = N saat flip
+  const cols=leftN?['#ef4444','#3b82f6']:['#3b82f6','#ef4444'];
+  const labs=leftN?['N','S']:['S','N'];
+  [[x,cols[0],labs[0]],[x+w/2,cols[1],labs[1]]].forEach(p=>{
+    const g2=cx.createLinearGradient(0,y,0,y+h);
+    g2.addColorStop(0,p[1]);g2.addColorStop(1,'rgba(0,0,0,.45)');
+    cx.fillStyle=g2;
+    cx.beginPath();
+    if(cx.roundRect)cx.roundRect(p[0]+2,y+4,w/2-4,h-8,6);else cx.rect(p[0]+2,y+4,w/2-4,h-8);
+    cx.fill();
+    cx.fillStyle='#fff';cx.font='bold 20px sans-serif';cx.textAlign='center';
+    cx.fillText(p[2],p[0]+w/4,y+h/2+7);cx.textAlign='left';
+  });
+  // kilau metalik
+  cx.fillStyle='rgba(255,255,255,.35)';cx.fillRect(x+8,y+5,w-16,5);
+  if(dragging){cx.strokeStyle='#38bdf8';cx.lineWidth=2;cx.setLineDash([6,4]);
+    cx.beginPath();
+    if(cx.roundRect)cx.roundRect(x-6,y-6,w+12,h+12,12);else cx.rect(x-6,y-6,w+12,h+12);
+    cx.stroke();cx.setLineDash([]);}
+}
+function drawField(){
+  const {B}=fieldAtCoil();
+  const aBase=.08+.3*Math.min(1,B/0.03);
+  const dir=flip?-1:1; // N di kanan -> aliran berlawanan jarum jam
+  for(let i=0;i<5;i++){
+    const rx=72+i*30, ry=42+i*17;
+    cx.strokeStyle='rgba(216,180,254,'+aBase+')';cx.lineWidth=1.6;
+    cx.beginPath();cx.ellipse(mx,my,rx,ry,0,0,7);cx.stroke();
+    // partikel mengalir di garis medan, kecepatannya ikut |arus|
+    const spd=dir*(0.5+Math.min(3,Math.abs(Ism)*60))*(playing?1:0);
+    for(let p=0;p<2;p++){
+      const th=simT*spd+p*Math.PI+i*.7;
+      const px=mx+rx*Math.cos(th), py=my-ry*Math.sin(th);
+      const pg=cx.createRadialGradient(px,py,0,px,py,5);
+      pg.addColorStop(0,'rgba(240,171,252,.95)');pg.addColorStop(1,'rgba(240,171,252,0)');
+      cx.fillStyle=pg;cx.beginPath();cx.arc(px,py,5,0,7);cx.fill();
+      cx.fillStyle='#f0abfc';cx.beginPath();cx.arc(px,py,1.8,0,7);cx.fill();
+    }
+  }
+}
+function drawCoil(){
+  const nLoops=Math.round(3+(N-50)/450*9); // 3..12 loop visual
+  const heat=Math.min(1,Math.abs(Ism)/0.085);
+  if(heat>0.02){ // pijar saat arus besar
+    const hg=cx.createRadialGradient(COIL_X,COIL_Y,8,COIL_X,COIL_Y,80);
+    hg.addColorStop(0,'rgba(251,146,60,'+(.3*heat)+')');hg.addColorStop(1,'rgba(251,146,60,0)');
+    cx.fillStyle=hg;cx.beginPath();cx.arc(COIL_X,COIL_Y,80,0,7);cx.fill();
+  }
+  // inti
+  cx.fillStyle='#1e293b';cx.strokeStyle='#475569';cx.lineWidth=2;
+  cx.beginPath();cx.ellipse(COIL_X,COIL_Y,20,34,0,0,7);cx.fill();cx.stroke();
+  // lilitan tembaga, makin banyak makin tebal
+  for(let i=0;i<nLoops;i++){
+    const ry=30+i*2.6;
+    const g2=cx.createLinearGradient(COIL_X-26,0,COIL_X+26,0);
+    g2.addColorStop(0,'#8a4b1f');g2.addColorStop(.5,'#f6c177');g2.addColorStop(1,'#8a4b1f');
+    cx.strokeStyle=g2;cx.lineWidth=4.5;
+    cx.beginPath();cx.ellipse(COIL_X,COIL_Y,26,ry,0,0,7);cx.stroke();
+    cx.strokeStyle='rgba(255,255,255,.25)';cx.lineWidth=1.2;
+    cx.beginPath();cx.ellipse(COIL_X,COIL_Y,26,ry,0,Math.PI*1.15,Math.PI*1.65);cx.stroke();
+  }
+  // label N
+  cx.fillStyle='#0b1120';cx.strokeStyle='#f6c177';cx.lineWidth=1.5;
+  cx.beginPath();cx.arc(COIL_X+44,COIL_Y-52,17,0,7);cx.fill();cx.stroke();
+  cx.fillStyle='#f6c177';cx.font='bold 11px sans-serif';cx.textAlign='center';
+  cx.fillText(N+' lilit',COIL_X+44,COIL_Y-48);cx.textAlign='left';
+  // kabel ke lampu & galvanometer
+  cx.strokeStyle='#64748b';cx.lineWidth=3;
+  cx.beginPath();cx.moveTo(COIL_X+24,COIL_Y+40);cx.lineTo(560,300);cx.stroke();
+  cx.beginPath();cx.moveTo(COIL_X-24,COIL_Y+40);cx.lineTo(120,300);cx.stroke();
+}
+function drawLamp(){
+  const lx=585,ly=300;
+  let b=Math.min(1,Math.abs(Ism)/0.085); // kecerahan 0..1, penuh di ~85 mA (preset tercepat)
+  // flicker: nyala tidak stabil saat redup-menengah
+  if(b>0.03&&b<0.97&&playing){
+    const fr=Math.abs(Math.sin(Math.floor(simT*24)*12.9898)*43758.5)%1;
+    b=Math.max(0,Math.min(1,b*(0.72+0.5*fr)));
+  }
+  cx.strokeStyle='#475569';cx.lineWidth=5;
+  cx.beginPath();cx.moveTo(lx-14,ly+44);cx.lineTo(lx,ly+16);cx.lineTo(lx+14,ly+44);cx.stroke();
+  cx.fillStyle='#1e293b';cx.fillRect(lx-10,ly+8,20,10);
+  if(b>0.01){
+    const gr=cx.createRadialGradient(lx,ly-8,2,lx,ly-8,20+52*b);
+    gr.addColorStop(0,'rgba(253,224,71,'+(.85*b)+')');
+    gr.addColorStop(.4,'rgba(251,146,60,'+(.45*b)+')');
+    gr.addColorStop(1,'rgba(251,146,60,0)');
+    cx.fillStyle=gr;cx.beginPath();cx.arc(lx,ly-8,20+52*b,0,7);cx.fill();
+  }
+  const bulb=cx.createRadialGradient(lx-4,ly-14,1,lx,ly-8,17);
+  if(b>0.5){bulb.addColorStop(0,'#fefce8');bulb.addColorStop(.6,'#fde047');bulb.addColorStop(1,'#a16207');}
+  else{bulb.addColorStop(0,'#3f3f46');bulb.addColorStop(1,'#18181b');}
+  cx.fillStyle=bulb;cx.strokeStyle='#71717a';cx.lineWidth=2;
+  cx.beginPath();cx.arc(lx,ly-8,16,0,7);cx.fill();cx.stroke();
+  if(b>0.5){ // filamen menyala
+    cx.strokeStyle='rgba(255,255,255,'+(.9*b)+')';cx.lineWidth=2;
+    cx.beginPath();cx.moveTo(lx-6,ly-4);cx.lineTo(lx-2,ly-12);cx.lineTo(lx+2,ly-4);cx.lineTo(lx+6,ly-12);cx.stroke();
+  }
+  cx.fillStyle='#94a3b8';cx.font='12px sans-serif';cx.textAlign='center';
+  cx.fillText(b<0.03?'💡 mati':b<0.6?'💡 redup':'💡 TERANG!',lx,ly+60);cx.textAlign='left';
+}
+function drawGalvo(){
+  const gx=110,gy=300;
+  cx.fillStyle='#111c33';cx.strokeStyle='#38bdf8';cx.lineWidth=2;
+  cx.beginPath();
+  if(cx.roundRect)cx.roundRect(gx-52,gy-44,104,88,10);else cx.rect(gx-52,gy-44,104,88);
+  cx.fill();cx.stroke();
+  const Iref=0.09, frac=Math.max(-1,Math.min(1,Ism/Iref));
+  cx.strokeStyle='#475569';cx.lineWidth=2;
+  for(let k=-4;k<=4;k++){const a=Math.PI*(0.75+k*0.125);
+    cx.beginPath();cx.moveTo(gx+34*Math.cos(a),gy+30*Math.sin(a));cx.lineTo(gx+42*Math.cos(a),gy+38*Math.sin(a));cx.stroke();}
+  cx.fillStyle=frac>0?'#4ade80':'#f87171';cx.font='bold 11px sans-serif';cx.textAlign='center';
+  cx.fillText(frac>0?'+':'−',gx,gy-24);cx.textAlign='left';
+  const na=Math.PI*(0.75+frac*0.5);
+  const wob=playing?Math.sin(simT*40)*0.008*Math.abs(frac):0;
+  cx.strokeStyle='#fbbf24';cx.lineWidth=3;
+  cx.beginPath();cx.moveTo(gx,gy+28);cx.lineTo(gx+40*Math.cos(na+wob),gy+28+36*Math.sin(na+wob));cx.stroke();
+  cx.fillStyle='#fbbf24';cx.beginPath();cx.arc(gx,gy+28,4,0,7);cx.fill();
+  cx.fillStyle='#94a3b8';cx.font='11px sans-serif';cx.textAlign='center';
+  cx.fillText('Galvanometer',gx,gy+62);cx.textAlign='left';
+}
+// ---------- loop ----------
 let last=performance.now();
 function step(now){
-  const dt=Math.min((now-last)/1000,.05); last=now;
+  const dt=Math.min((now-last)/1000,.05);last=now;
   if(playing){
     simT+=dt;
-    if(demo){ demoT+=dt; magX=220+Math.sin(demoT*2.2)*130; }
-    const vx=(magX-(step._px??magX))/Math.max(dt,1e-4); step._px=magX;
-    magVX=vx;
-    const Acoil=0.008; // luas kumparan m^2
-    Phi=N*Bfield(magX)*Acoil;
-    if(firstPhi){PhiPrev=Phi;firstPhi=false;}
-    const dPhi=(Phi-PhiPrev)/dt; PhiPrev=Phi;
-    emf=-dPhi;
-    emfS+= (emf-emfS)*Math.min(1,dt*10); // haluskan
-    thunkCool-=dt;
-    if(Math.abs(emfS)>0.35&&thunkCool<=0){Snd.thunk();thunkCool=1.2;}
+    if(demoW>0&&!dragging)mx=235+150*Math.sin(demoW*simT);
+    stepPhysics(dt);
   }
-  const I=emfS/Rcoil;
-  $('oI').textContent=(I*1000).toFixed(1)+' mA';
-  $('oE').textContent=(emfS*1000).toFixed(1)+' mV';
-  $('oF').textContent=(Phi*1000).toFixed(1)+' mWb';
-  draw(I);
-  requestAnimationFrame(step);
+  Snd.hum(Math.min(1,Math.abs(Ism)/0.085));
+  draw();requestAnimationFrame(step);
 }
-function drawField(mx){
-  // garis medan dipol di sekitar magnet, beranimasi
-  cx.save();
-  cx.strokeStyle='rgba(148,163,184,.5)'; cx.lineWidth=1.4;
-  cx.setLineDash([7,7]); cx.lineDashOffset=-(simT*36)%14;
-  for(let k=-3;k<=3;k++){
-    const r0=46+Math.abs(k)*16;
-    cx.beginPath();
-    cx.ellipse(mx,MAG_Y,r0,r0*0.62,0,0,7);
-    cx.stroke();
-  }
-  cx.setLineDash([]);
-  // panah arah medan (keluar dari kutub U)
-  const ux=flipped?mx-MAG_W/2:mx+MAG_W/2;
-  cx.fillStyle='#94a3b8'; cx.font='12px sans-serif';
-  for(let k=-2;k<=2;k++){
-    const a=k*0.5, px2=mx+Math.cos(a)*96, py2=MAG_Y+Math.sin(a)*62;
-    const dir=flipped?-1:1;
-    cx.fillText(dir>0?'→':'←',px2-4,py2+4);
-  }
-  cx.restore();
-}
-function draw(I){
+function draw(){
   cx.clearRect(0,0,cv.width,cv.height);
-  drawField(magX);
-  // ---- magnet batang ----
-  const x0=magX-MAG_W/2, y0=MAG_Y-MAG_H/2;
-  const leftCol=flipped?'#ef4444':'#3b82f6', rightCol=flipped?'#3b82f6':'#ef4444';
-  cx.fillStyle=leftCol; cx.fillRect(x0,y0,MAG_W/2,MAG_H);
-  cx.fillStyle=rightCol; cx.fillRect(x0+MAG_W/2,y0,MAG_W/2,MAG_H);
-  cx.strokeStyle='#e2e8f0'; cx.lineWidth=2.5; cx.strokeRect(x0,y0,MAG_W,MAG_H);
-  cx.fillStyle='#fff'; cx.font='bold 22px sans-serif';
-  cx.fillText(flipped?'U':'S',x0+MAG_W/4-8,y0+37);
-  cx.fillText(flipped?'S':'U',x0+MAG_W*3/4-8,y0+37);
-  cx.fillStyle='#94a3b8'; cx.font='13px sans-serif';
-  cx.fillText('🧲 SERET AKU',x0+MAG_W/2-44,y0+MAG_H+20);
-  // rel geser
-  cx.strokeStyle='#243353'; cx.lineWidth=3;
-  cx.beginPath(); cx.moveTo(70,MAG_Y+MAG_H/2+34); cx.lineTo(370,MAG_Y+MAG_H/2+34); cx.stroke();
-  // ---- kumparan ----
-  cx.strokeStyle='#fbbf24'; cx.lineWidth=4;
-  for(let i=0;i<5;i++){
-    cx.beginPath(); cx.ellipse(COIL_X,MAG_Y,16,52-i*4,0,0,7); cx.stroke();
-  }
-  cx.fillStyle='#94a3b8'; cx.font='13px sans-serif';
-  cx.fillText('kumparan ('+Math.round(N)+' lilitan)',COIL_X-58,MAG_Y+78);
-  // kabel ke galvanometer
-  cx.strokeStyle='#64748b'; cx.lineWidth=3;
-  cx.beginPath(); cx.moveTo(COIL_X, MAG_Y+52); cx.lineTo(COIL_X,250); cx.lineTo(250,250); cx.stroke();
-  cx.beginPath(); cx.moveTo(COIL_X, MAG_Y-52); cx.lineTo(COIL_X,236); cx.lineTo(430,236); cx.lineTo(430,250); cx.stroke();
-  // ---- galvanometer ----
-  cx.fillStyle='#1e293b'; cx.strokeStyle='#475569'; cx.lineWidth=2;
-  cx.beginPath(); cx.roundRect?cx.roundRect(250,250,180,86,10):cx.rect(250,250,180,86,10); cx.fill(); cx.stroke();
-  const Iref=0.09, frac=Math.max(-1,Math.min(1,I/Iref));
-  const na=-Math.PI/2+frac*1.15;
-  cx.strokeStyle=I>=0?'#38bdf8':'#fbbf24'; cx.lineWidth=3;
-  cx.beginPath(); cx.moveTo(340,322); cx.lineTo(340+Math.cos(na)*52,322+Math.sin(na)*52); cx.stroke();
-  cx.fillStyle='#e2e8f0'; cx.beginPath(); cx.arc(340,322,5,0,7); cx.fill();
-  cx.fillStyle='#94a3b8'; cx.font='12px sans-serif'; cx.fillText('GALVANOMETER',272,268);
-  cx.fillStyle=I>=0?'#38bdf8':'#fbbf24'; cx.font='bold 13px sans-serif';
-  cx.fillText(I>=0?'arus →':'← arus',300,292);
-  // ---- lampu: menyala saat ada arus induksi ----
-  const glow=Math.min(Math.abs(I)/0.05,1);
-  if(glow>0.03){
-    const g2=cx.createRadialGradient(560,293,4,560,293,44);
-    g2.addColorStop(0,`rgba(251,191,36,${(0.75*glow).toFixed(2)})`); g2.addColorStop(1,'rgba(251,191,36,0)');
-    cx.fillStyle=g2; cx.beginPath(); cx.arc(560,293,44,0,7); cx.fill();
-  }
-  cx.fillStyle=glow>0.5?'#fde68a':'#475569';
-  cx.beginPath(); cx.arc(560,293,16,0,7); cx.fill();
-  cx.strokeStyle='#94a3b8'; cx.lineWidth=2; cx.stroke();
-  cx.fillStyle='#94a3b8'; cx.font='13px sans-serif'; cx.fillText('💡 lampu',532,330);
-  // kabel lampu
-  cx.strokeStyle='#64748b'; cx.lineWidth=3;
-  cx.beginPath(); cx.moveTo(430,250); cx.lineTo(560,250); cx.lineTo(560,277); cx.stroke();
-  // status
-  cx.font='bold 15px sans-serif';
-  if(Math.abs(magVX)>8&&playing){
-    cx.fillStyle='#fbbf24';
-    cx.fillText('⚡ MENGINDUKSI — magnet bergerak!',20,26);
-  } else {
-    cx.fillStyle='#64748b';
-    cx.fillText('magnet diam = tidak ada arus',20,26);
-  }
+  // grid samar
+  cx.strokeStyle='rgba(56,189,248,.05)';cx.lineWidth=1;
+  for(let gx2=0;gx2<cv.width;gx2+=34){cx.beginPath();cx.moveTo(gx2,0);cx.lineTo(gx2,cv.height);cx.stroke();}
+  for(let gy2=0;gy2<cv.height;gy2+=34){cx.beginPath();cx.moveTo(0,gy2);cx.lineTo(cv.width,gy2);cx.stroke();}
+  drawField();
+  drawCoil();
+  drawMagnet();
+  drawLamp();
+  drawGalvo();
+  cx.fillStyle='#94a3b8';cx.font='12px sans-serif';
+  cx.fillText('Seret magnet ⇄',86,120);
 }
-syncMuteBtn();
-$('bMute').onclick=()=>{
-  Snd.muted=!Snd.muted;
-  localStorage.setItem('phiphet_mute',Snd.muted?'1':'0');
-  syncMuteBtn(); Snd.blip();
-};
+function labels(){
+  const {B}=fieldAtCoil();
+  $('oPhi').textContent=(phi*1000).toFixed(1).replace('.',',')+' mWb';
+  $('oB').textContent=(B*1000).toFixed(1).replace('.',',')+' mT';
+  $('oEmf').textContent=(emfSm*1000).toFixed(1).replace('.',',')+' mV';
+  $('oI').textContent=(Ism*1000).toFixed(1).replace('.',',')+' mA';
+}
+setInterval(labels,150);
+$('muteBtn').onclick=()=>Snd.toggleMute();
+Snd.load();setPlaying(true);
 requestAnimationFrame(step);
 </script>
 </body>

@@ -109,7 +109,7 @@ const $=id=>document.getElementById(id);
 const GX=70, GY=336; // pangkal meriam (px)
 let ang=45, v0=25, g=9.8, showTrail=true;
 let playing=true, simT=0;
-let ball=null, trail=[], score=0, targetX=55, flash=0, msg='';
+let ball=null, trail=[], score=0, targetX=55, flash=0, msg='', muzzle=0;
 const rad=a=>a*Math.PI/180;
 function theory(){
   const R=v0*v0*Math.sin(2*rad(ang))/g;
@@ -138,8 +138,11 @@ $('tS').onchange=e=>{showTrail=e.target.value==='1';};
 labels();
 $('bFire').onclick=()=>{
   if(ball)return;
+  setPlaying(true); // penting: menembak selalu membangunkan simulasi dari pause/stop
   Snd.boom();
-  ball={t:0,x:0,y:0};
+  const r=rad(ang);
+  ball={t:0,x:0,y:0,vx:v0*Math.cos(r),vy:v0*Math.sin(r)}; // kecepatan dikunci saat ditembak
+  muzzle=1; // efek ledakan di mulut meriam
   trail=[]; msg='';
 };
 $('bTarget').onclick=()=>{Snd.blip();newTarget();msg='🎯 target baru dipasang';};
@@ -157,16 +160,15 @@ let last=performance.now();
 function step(now){
   const dt=Math.min((now-last)/1000,.05); last=now;
   if(playing){
-    simT+=dt; flash=Math.max(0,flash-dt);
+    simT+=dt; flash=Math.max(0,flash-dt); muzzle=Math.max(0,muzzle-dt*3);
     if(ball){
       ball.t+=dt;
-      const vx=v0*Math.cos(rad(ang)), vy=v0*Math.sin(rad(ang));
-      ball.x=vx*ball.t; ball.y=vy*ball.t-0.5*g*ball.t*ball.t;
+      ball.x=ball.vx*ball.t; ball.y=ball.vy*ball.t-0.5*g*ball.t*ball.t;
       trail.push({x:ball.x,y:Math.max(ball.y,0)});
       if(trail.length>600)trail.shift();
       if(ball.y<=0&&ball.t>0.05){
         // mendarat
-        const landX=vx*ball.t;
+        const landX=ball.vx*ball.t;
         if(Math.abs(landX-targetX)<=2.5){
           score++; Snd.chime(); msg='🎯 KENA! +1 poin'; flash=1;
           newTarget();
@@ -209,11 +211,14 @@ function draw(){
     const th=theory();
     cx.save(); cx.setLineDash([6,6]);
     cx.strokeStyle='rgba(251,191,36,.55)'; cx.lineWidth=2; cx.beginPath();
-    for(let t=0;t<=th.T;t+=th.T/60){
-      const px2=X(v0*Math.cos(rad(ang))*t), py2=Y(v0*Math.sin(rad(ang))*t-0.5*g*t*t);
-      t===0?cx.moveTo(px2,py2):cx.lineTo(px2,py2);
+    if(th.T>1e-6){ // pengaman: T=0 akan bikin loop tak berujung
+      for(let t=0;t<=th.T;t+=th.T/60){
+        const px2=X(v0*Math.cos(rad(ang))*t), py2=Y(v0*Math.sin(rad(ang))*t-0.5*g*t*t);
+        t===0?cx.moveTo(px2,py2):cx.lineTo(px2,py2);
+      }
+      cx.stroke();
     }
-    cx.stroke(); cx.restore();
+    cx.restore();
   }
   // jejak
   if(showTrail&&trail.length>1){
@@ -237,10 +242,20 @@ function draw(){
     const gr2=cx.createRadialGradient(bx2-3,by2-3,1,bx2,by2,11);
     gr2.addColorStop(0,'#fde68a'); gr2.addColorStop(1,'#b45309');
     cx.fillStyle=gr2; cx.beginPath(); cx.arc(bx2,by2,9,0,7); cx.fill();
-    // vektor kecepatan
-    const vx=v0*Math.cos(rad(ang)), vy=v0*Math.sin(rad(ang))-g*ball.t;
+    // vektor kecepatan (pakai kecepatan bola yang dikunci, bukan slider live)
+    const vvx=ball.vx, vvy=ball.vy-g*ball.t;
     cx.strokeStyle='#38bdf8'; cx.lineWidth=2.5;
-    cx.beginPath(); cx.moveTo(bx2,by2); cx.lineTo(bx2+vx*s*0.35,by2-vy*s*0.35); cx.stroke();
+    cx.beginPath(); cx.moveTo(bx2,by2); cx.lineTo(bx2+vvx*s*0.35,by2-vvy*s*0.35); cx.stroke();
+  }
+  // efek ledakan di mulut meriam
+  if(muzzle>0){
+    const r=rad(ang), tx2=GX+66*Math.cos(r), ty2=GY-66*Math.sin(r);
+    const mr=(14+22*(1-muzzle))*muzzle;
+    const mg=cx.createRadialGradient(tx2,ty2,1,tx2,ty2,Math.max(mr,2));
+    mg.addColorStop(0,'rgba(254,240,138,'+(0.95*muzzle)+')');
+    mg.addColorStop(.5,'rgba(251,146,60,'+(0.7*muzzle)+')');
+    mg.addColorStop(1,'rgba(239,68,68,0)');
+    cx.fillStyle=mg; cx.beginPath(); cx.arc(tx2,ty2,Math.max(mr,2),0,7); cx.fill();
   }
   // pesan
   if(msg){
@@ -249,6 +264,12 @@ function draw(){
     cx.fillStyle='rgba(11,18,32,.9)';
     cx.beginPath(); cx.roundRect?cx.roundRect(cv.width/2-tw/2-12,14,tw+24,32,10):cx.rect(cv.width/2-tw/2-12,14,tw+24,32,10); cx.fill();
     cx.fillStyle=flash>0?'#fbbf24':'#e2e8f0'; cx.fillText(msg,cv.width/2-tw/2,36);
+  }
+  // telemetri live saat bola terbang
+  if(ball){
+    cx.font='13px sans-serif'; cx.fillStyle='#7dd3fc'; cx.textAlign='right';
+    cx.fillText('x = '+ball.x.toFixed(1)+' m   y = '+Math.max(ball.y,0).toFixed(1)+' m   t = '+ball.t.toFixed(2)+' s',cv.width-14,26);
+    cx.textAlign='left';
   }
   // info gravitasi
   cx.fillStyle='#94a3b8'; cx.font='13px sans-serif';
