@@ -41,7 +41,7 @@
 <body>
 <div class="top"><a href="../../index.html">← Semua simulasi</a><button id="bMute" class="mbtn" title="Suara on/off">🔊</button></div>
 <h1>Lab <span>Gerak Proyektil</span></h1>
-<p class="hint">Atur <b>sudut</b> dan <b>kecepatan</b> meriam, tekan <b>TEMBAK!</b> — kenai bendera target sejauh mungkin. Garis putus-putus adalah tebakan lintasan sebelum ditembakkan.</p>
+<p class="hint">Atur <b>sudut</b> dan <b>kecepatan</b> peluncur, tekan <b>TEMBAK!</b> — luncurkan roket dan kenai bendera target sejauh mungkin. Garis putus-putus adalah tebakan lintasan sebelum diluncurkan.</p>
 <div class="card simbar">
   <button id="bPlay" class="on">⏸ Pause</button>
   <button id="bStop">⏹ Stop &amp; Reset</button>
@@ -61,7 +61,7 @@
     <div><label>Jejak lintasan</label><select id="tS"><option value="1">Tampilkan</option><option value="0">Sembunyikan</option></select></div>
   </div>
   <div class="btns">
-    <button class="go" id="bFire">💥 TEMBAK!</button>
+    <button class="go" id="bFire">🚀 TEMBAK!</button>
     <button class="go" id="bTarget">🎯 Target baru</button>
   </div>
   <div class="read">
@@ -110,6 +110,7 @@ const GX=70, GY=336; // pangkal meriam (px)
 let ang=45, v0=25, g=9.8, showTrail=true;
 let playing=true, simT=0;
 let ball=null, trail=[], score=0, targetX=55, flash=0, msg='', muzzle=0;
+let smoke=[], burst=[]; // partikel asap roket & serpihan ledakan pendaratan
 const rad=a=>a*Math.PI/180;
 function theory(){
   const R=v0*v0*Math.sin(2*rad(ang))/g;
@@ -143,7 +144,7 @@ $('bFire').onclick=()=>{
   const r=rad(ang);
   ball={t:0,x:0,y:0,vx:v0*Math.cos(r),vy:v0*Math.sin(r)}; // kecepatan dikunci saat ditembak
   muzzle=1; // efek ledakan di mulut meriam
-  trail=[]; msg='';
+  trail=[]; smoke=[]; msg='';
 };
 $('bTarget').onclick=()=>{Snd.blip();newTarget();msg='🎯 target baru dipasang';};
 // ===== Transport =====
@@ -154,7 +155,7 @@ function setPlaying(v){
   $('simState').textContent=v?'▶ Simulasi berjalan':'⏸ Dijeda';
 }
 $('bPlay').onclick=()=>{Snd.blip();setPlaying(!playing);};
-$('bStop').onclick=()=>{Snd.blip();ball=null;trail=[];msg='';setPlaying(false);};
+$('bStop').onclick=()=>{Snd.blip();ball=null;trail=[];smoke=[];burst=[];msg='';setPlaying(false);};
 
 let last=performance.now();
 function step(now){
@@ -162,25 +163,120 @@ function step(now){
   const dt=Math.min((now-last)/1000,.05); last=now;
   if(playing){
     simT+=dt; flash=Math.max(0,flash-dt); muzzle=Math.max(0,muzzle-dt*3);
+    // partikel: asap & serpihan selalu diperbarui saat simulasi jalan
+    for(const p of smoke){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy-=14*dt;p.life-=dt*.8;p.r+=15*dt;}
+    smoke=smoke.filter(p=>p.life>0);
+    for(const p of burst){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=90*dt;p.life-=dt*1.5;}
+    burst=burst.filter(p=>p.life>0);
     if(ball){
       ball.t+=dt;
       ball.x=ball.vx*ball.t; ball.y=ball.vy*ball.t-0.5*g*ball.t*ball.t;
       trail.push({x:ball.x,y:Math.max(ball.y,0)});
       if(trail.length>600)trail.shift();
+      // asap keluar dari nosel roket
+      const sc=scale(), vyNow=ball.vy-g*ball.t, rot0=Math.atan2(-vyNow,ball.vx);
+      smoke.push({x:GX+ball.x*sc-Math.cos(rot0)*27, y:GY-Math.max(ball.y,0)*sc-Math.sin(rot0)*27,
+        vx:-Math.cos(rot0)*30+(Math.random()-.5)*26, vy:-Math.sin(rot0)*30-16-Math.random()*16,
+        life:1, r:4+Math.random()*4});
       if(ball.y<=0&&ball.t>0.05){
-        // mendarat
-        const landX=ball.vx*ball.t;
+        // mendarat: ledakan debu
+        const landX=ball.vx*ball.t, scc=scale(), lx=GX+landX*scc;
+        for(let i=0;i<18;i++){const a2=-Math.PI*Math.random(), sp=50+Math.random()*110;
+          burst.push({x:lx,y:GY-5,vx:Math.cos(a2)*sp,vy:Math.sin(a2)*sp-50,life:1,
+            c:['#a8a29e','#78716c','#fbbf24','#f97316'][i%4]});}
         if(Math.abs(landX-targetX)<=2.5){
           score++; Snd.chime(); msg='🎯 KENA! +1 poin'; flash=1;
           newTarget();
         } else {
-          Snd.thud(); msg='mendarat di '+landX.toFixed(1)+' m — coba lagi!';
+          Snd.thud(); msg='🚀 mendarat di '+landX.toFixed(1)+' m — coba lagi!';
         }
         ball=null; labels();
       }
     }
   }
   draw();
+}
+// ===== Roket: digambar menghadap sumbu +x lokal, hidung di +x =====
+function drawRocket(x,y,rot,flame){
+  cx.save(); cx.translate(x,y); cx.rotate(rot);
+  const L=46, W=14; // panjang & lebar badan (px)
+  // --- semburan api pendorong (berdenyut tiap frame) ---
+  if(flame>0){
+    const fl=30*(0.82+Math.random()*0.36)*flame;
+    const gl=cx.createRadialGradient(-L/2-8,0,2,-L/2-8,0,30);
+    gl.addColorStop(0,'rgba(255,170,50,.5)'); gl.addColorStop(1,'rgba(255,120,20,0)');
+    cx.fillStyle=gl; cx.beginPath(); cx.arc(-L/2-8,0,30,0,7); cx.fill();
+    const layers=[['#dc2626',.80,1.0],['#f97316',.60,.72],['#fde047',.42,.48],['#fff7ed',.22,.26]];
+    for(const [col,wr,lf] of layers){
+      const len=fl*lf*(0.92+Math.random()*0.2), wob2=(Math.random()-.5)*5;
+      cx.fillStyle=col; cx.globalAlpha=.94;
+      cx.beginPath();
+      cx.moveTo(-L/2+3,-W/2*wr);
+      cx.quadraticCurveTo(-L/2-len*.55,-W/2*wr*1.25,-L/2-len,wob2);
+      cx.quadraticCurveTo(-L/2-len*.55, W/2*wr*1.25,-L/2+3, W/2*wr);
+      cx.closePath(); cx.fill();
+    }
+    cx.globalAlpha=1;
+  }
+  // --- nosel mesin ---
+  cx.fillStyle='#1f2937';
+  cx.beginPath();
+  cx.moveTo(-L/2+1,-5.5); cx.lineTo(-L/2-7,-9); cx.lineTo(-L/2-7,9); cx.lineTo(-L/2+1,5.5);
+  cx.closePath(); cx.fill();
+  cx.strokeStyle='#9ca3af'; cx.lineWidth=1; cx.stroke();
+  // --- sirip ekor ---
+  cx.fillStyle='#dc2626'; cx.strokeStyle='#991b1b'; cx.lineWidth=1;
+  for(const sgn of [-1,1]){
+    cx.beginPath();
+    cx.moveTo(-L/2+4,sgn*(W/2-1));
+    cx.lineTo(-L/2-9,sgn*(W/2+11));
+    cx.lineTo(-L/2-13,sgn*(W/2+1));
+    cx.closePath(); cx.fill(); cx.stroke();
+  }
+  // --- badan metalik ---
+  const bg=cx.createLinearGradient(0,-W/2,0,W/2);
+  bg.addColorStop(0,'#f8fafc'); bg.addColorStop(.45,'#cbd5e1'); bg.addColorStop(1,'#7d8ca3');
+  cx.fillStyle=bg;
+  cx.beginPath();
+  cx.moveTo(-L/2,-W/2); cx.lineTo(L/2-13,-W/2); cx.lineTo(L/2-13,W/2); cx.lineTo(-L/2,W/2);
+  cx.closePath(); cx.fill();
+  cx.strokeStyle='#5b6b82'; cx.lineWidth=1; cx.stroke();
+  // --- kerucut hidung merah ---
+  const ng=cx.createLinearGradient(L/2-13,0,L/2+1,0);
+  ng.addColorStop(0,'#f87171'); ng.addColorStop(1,'#991b1b');
+  cx.fillStyle=ng;
+  cx.beginPath();
+  cx.moveTo(L/2-13,-W/2);
+  cx.quadraticCurveTo(L/2-5,-W/2*.62,L/2+1,0);
+  cx.quadraticCurveTo(L/2-5, W/2*.62,L/2-13, W/2);
+  cx.closePath(); cx.fill();
+  cx.strokeStyle='#7f1d1d'; cx.stroke();
+  // --- pita merah, garis panel, paku keling ---
+  cx.fillStyle='#dc2626'; cx.fillRect(-L/2+2,-W/2,6,W);
+  cx.strokeStyle='rgba(71,85,105,.65)'; cx.lineWidth=1;
+  for(const px of [-8,2,10]){
+    cx.beginPath(); cx.moveTo(px,-W/2+1.5); cx.lineTo(px,W/2-1.5); cx.stroke();
+    cx.fillStyle='#64748b';
+    cx.beginPath(); cx.arc(px,-W/2+3.4,1.1,0,7); cx.fill();
+    cx.beginPath(); cx.arc(px, W/2-3.4,1.1,0,7); cx.fill();
+  }
+  // --- jendela kokpit ---
+  cx.fillStyle='#1e40af'; cx.beginPath(); cx.arc(L/2-21,0,5,0,7); cx.fill();
+  const wg=cx.createRadialGradient(L/2-22.6,-1.6,.5,L/2-21,0,5);
+  wg.addColorStop(0,'rgba(186,230,253,.95)'); wg.addColorStop(1,'rgba(30,64,175,0)');
+  cx.fillStyle=wg; cx.beginPath(); cx.arc(L/2-21,0,5,0,7); cx.fill();
+  cx.strokeStyle='#0b1220'; cx.lineWidth=1.6; cx.beginPath(); cx.arc(L/2-21,0,5,0,7); cx.stroke();
+  // --- label badan ---
+  cx.fillStyle='#475569'; cx.font='bold 6.5px sans-serif'; cx.textAlign='center';
+  cx.fillText('PHI·1',-1,2.4); cx.textAlign='left';
+  // --- lampu suar berkedip ---
+  if(Math.sin(simT*9)>0){
+    cx.fillStyle='#ef4444'; cx.beginPath(); cx.arc(4,-W/2-.5,2.6,0,7); cx.fill();
+    const bl=cx.createRadialGradient(4,-W/2-.5,1,4,-W/2-.5,11);
+    bl.addColorStop(0,'rgba(239,68,68,.85)'); bl.addColorStop(1,'rgba(239,68,68,0)');
+    cx.fillStyle=bl; cx.beginPath(); cx.arc(4,-W/2-.5,11,0,7); cx.fill();
+  }
+  cx.restore();
 }
 function draw(){
   cx.clearRect(0,0,cv.width,cv.height);
@@ -226,6 +322,17 @@ function draw(){
     trail.forEach((p,i)=>{const px2=X(p.x),py2=Y(p.y);i?cx.lineTo(px2,py2):cx.moveTo(px2,py2);});
     cx.stroke();
   }
+  // asap roket
+  for(const p of smoke){
+    cx.fillStyle='rgba(148,163,184,'+(0.4*p.life).toFixed(3)+')';
+    cx.beginPath(); cx.arc(p.x,p.y,p.r,0,7); cx.fill();
+  }
+  // serpihan ledakan saat mendarat
+  for(const p of burst){
+    cx.globalAlpha=Math.max(p.life,0); cx.fillStyle=p.c;
+    cx.beginPath(); cx.arc(p.x,p.y,1+3.5*p.life,0,7); cx.fill();
+    cx.globalAlpha=1;
+  }
   // meriam
   cx.save(); cx.translate(GX,GY); cx.rotate(-rad(ang));
   cx.fillStyle='#334155'; cx.strokeStyle='#94a3b8'; cx.lineWidth=2;
@@ -234,18 +341,19 @@ function draw(){
   cx.restore();
   cx.fillStyle='#475569'; cx.beginPath(); cx.arc(GX,GY,16,0,7); cx.fill();
   cx.strokeStyle='#94a3b8'; cx.lineWidth=2; cx.stroke();
-  // bola meriam
+  // roket siap di mulut meriam (sebelum ditembak / sesudah reset)
+  if(!ball){
+    cx.save(); cx.translate(GX,GY); cx.rotate(-rad(ang));
+    drawRocket(78,0,0,0);
+    cx.restore();
+  }
+  // roket yang sedang terbang (hidung selalu menghadap arah gerak)
   if(ball){
     const bx2=X(ball.x), by2=Y(Math.max(ball.y,0));
-    // bayangan
-    cx.fillStyle='rgba(0,0,0,.35)'; cx.beginPath(); cx.ellipse(bx2,GY+4,10,3,0,0,7); cx.fill();
-    const gr2=cx.createRadialGradient(bx2-3,by2-3,1,bx2,by2,11);
-    gr2.addColorStop(0,'#fde68a'); gr2.addColorStop(1,'#b45309');
-    cx.fillStyle=gr2; cx.beginPath(); cx.arc(bx2,by2,9,0,7); cx.fill();
-    // vektor kecepatan (pakai kecepatan bola yang dikunci, bukan slider live)
-    const vvx=ball.vx, vvy=ball.vy-g*ball.t;
-    cx.strokeStyle='#38bdf8'; cx.lineWidth=2.5;
-    cx.beginPath(); cx.moveTo(bx2,by2); cx.lineTo(bx2+vvx*s*0.35,by2-vvy*s*0.35); cx.stroke();
+    // bayangan di tanah
+    cx.fillStyle='rgba(0,0,0,.35)'; cx.beginPath(); cx.ellipse(bx2,GY+4,17,4,0,0,7); cx.fill();
+    const vvy=ball.vy-g*ball.t;
+    drawRocket(bx2,by2,Math.atan2(-vvy,ball.vx),1);
   }
   // efek ledakan di mulut meriam
   if(muzzle>0){
