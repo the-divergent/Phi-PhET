@@ -199,9 +199,10 @@ function drawAmbulance(x,y,s){
 // ---------- loop ----------
 let last=performance.now();
 function step(now){
+  requestAnimationFrame(step); // paling dulu: satu frame error tak boleh membunuh loop
   const dt=Math.min((now-last)/1000,.05); last=now; gDt=dt;
   if(playing){simT+=dt; sirenFlash=Math.max(0,sirenFlash-dt);}
-  draw(); requestAnimationFrame(step);
+  draw();
 }
 function fmtLen(m){return m>=1?m.toFixed(1).replace('.',',')+' m':(m*100).toFixed(1).replace('.',',')+' cm';}
 function draw(){

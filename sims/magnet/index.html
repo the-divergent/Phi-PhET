@@ -284,6 +284,7 @@ function drawGalvo(){
 // ---------- loop ----------
 let last=performance.now();
 function step(now){
+  requestAnimationFrame(step); // paling dulu: satu frame error tak boleh membunuh loop
   const dt=Math.min((now-last)/1000,.05);last=now;
   if(playing){
     simT+=dt;
@@ -291,7 +292,7 @@ function step(now){
     stepPhysics(dt);
   }
   Snd.hum(Math.min(1,Math.abs(Ism)/0.085));
-  draw();requestAnimationFrame(step);
+  draw();
 }
 function draw(){
   cx.clearRect(0,0,cv.width,cv.height);

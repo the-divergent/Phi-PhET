@@ -88,20 +88,20 @@ const Snd={
   boom(){if(this.muted)return;try{
     const c=this.ac(),t=c.currentTime,n=(0.5*c.sampleRate)|0,b=c.createBuffer(1,n,c.sampleRate),ch=b.getChannelData(0);
     for(let i=0;i<n;i++)ch[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.2);
-    const s=c.createBufferSource();s.buffer=b,f2=c.createBiquadFilter(),g=c.createGain();
+    const s=c.createBufferSource();s.buffer=b;const f2=c.createBiquadFilter(),gg=c.createGain();
     f2.type='lowpass';f2.frequency.setValueAtTime(900,t);f2.frequency.exponentialRampToValueAtTime(120,t+0.45);
-    g.gain.setValueAtTime(.5,t);g.gain.exponentialRampToValueAtTime(.0001,t+0.5);
-    s.connect(f2);f2.connect(g);g.connect(c.destination);s.start(t);
+    gg.gain.setValueAtTime(.5,t);gg.gain.exponentialRampToValueAtTime(.0001,t+0.5);
+    s.connect(f2);f2.connect(gg);gg.connect(c.destination);s.start(t);
     this.tone(90,.4,'sine',.25,45);}catch(e){}},
   chime(){this.tone(880,.12,'sine',.12);setTimeout(()=>this.tone(1320,.2,'sine',.12),110);},
   thud(){this.tone(120,.15,'sine',.12,60);},
   noise(d,vol,fc){if(this.muted)return;try{
     const c=this.ac(),t=c.currentTime,n=Math.max(1,(d*c.sampleRate)|0),b=c.createBuffer(1,n,c.sampleRate),ch=b.getChannelData(0);
     for(let i=0;i<n;i++)ch[i]=(Math.random()*2-1)*(1-i/n);
-    const s=c.createBufferSource();s.buffer=b,f=c.createBiquadFilter(),g=c.createGain();
+    const s=c.createBufferSource();s.buffer=b;const f=c.createBiquadFilter(),gg=c.createGain();
     f.type='bandpass';f.frequency.value=fc||2500;
-    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.2,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+d);
-    s.connect(f);f.connect(g);g.connect(c.destination);s.start(t);}catch(e){}},
+    gg.gain.setValueAtTime(.0001,t);gg.gain.exponentialRampToValueAtTime(vol||.2,t+.006);gg.gain.exponentialRampToValueAtTime(.0001,t+d);
+    s.connect(f);f.connect(gg);gg.connect(c.destination);s.start(t);}catch(e){}},
 };
 function syncMuteBtn(){const b=document.getElementById('bMute');if(b)b.textContent=Snd.muted?'🔇':'🔊';}
 const cv=document.getElementById('cv'), cx=cv.getContext('2d');
@@ -158,6 +158,7 @@ $('bStop').onclick=()=>{Snd.blip();ball=null;trail=[];msg='';setPlaying(false);}
 
 let last=performance.now();
 function step(now){
+  requestAnimationFrame(step); // paling dulu: satu frame error tak boleh membunuh loop
   const dt=Math.min((now-last)/1000,.05); last=now;
   if(playing){
     simT+=dt; flash=Math.max(0,flash-dt); muzzle=Math.max(0,muzzle-dt*3);
@@ -180,7 +181,6 @@ function step(now){
     }
   }
   draw();
-  requestAnimationFrame(step);
 }
 function draw(){
   cx.clearRect(0,0,cv.width,cv.height);
