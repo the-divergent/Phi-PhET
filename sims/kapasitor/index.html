@@ -27,12 +27,22 @@
   .read div { background:#0f172a; border:1px dashed #475569; border-radius:8px; padding:8px 4px; text-align:center; }
   .read .v { font-size:1.05rem; color:var(--acc); font-weight:700; }
   .read .k { font-size:.68rem; color:var(--mut); margin-top:2px; }
+  .simbar { display:flex; gap:10px; align-items:center; }
+  .simbar button { padding:9px 20px; border-radius:20px; border:1px solid var(--line); background:#0f172a; color:var(--txt); cursor:pointer; font-weight:700; font-size:.85rem; }
+  .simbar button.on { background:var(--acc); color:#111; border-color:var(--acc); }
+  .simbar button#bStop { background:#7f1d1d; border-color:#7f1d1d; color:#fff; }
+  .simbar span { font-size:.82rem; color:var(--mut); margin-left:auto; }
 </style>
 </head>
 <body>
 <div class="top"><a href="../../index.html">← Semua simulasi</a></div>
 <h1>Lab <span>Kapasitor</span></h1>
 <p class="hint">Tekan <b>Isi daya</b> untuk mengisi kapasitor lewat resistor, atau <b>Kosongkan</b> untuk mengosongkannya. Amati muatan di pelat dan kurva Vc(t).</p>
+<div class="card simbar">
+  <button id="bPlay" class="on">⏸ Pause</button>
+  <button id="bStop">⏹ Stop &amp; Reset</button>
+  <span id="simState">▶ Simulasi berjalan</span>
+</div>
 <div class="card"><canvas id="cv" width="680" height="300"></canvas></div>
 <div class="card"><canvas id="gr" width="680" height="180"></canvas>
   <p class="hint" style="margin:8px 0 0">Grafik: <span style="color:#fbbf24">— tegangan kapasitor Vc</span> &nbsp; <span style="color:#38bdf8">— arus I</span></p>
@@ -60,6 +70,7 @@
 const cv=document.getElementById('cv'), cx=cv.getContext('2d');
 const gr=document.getElementById('gr'), gx=gr.getContext('2d');
 let Vs=9, R=220, C=4700e-6, Vc=0, mode='isi', speed=5, I=0, t=0;
+let playing=true;
 let hist=[];
 const $=id=>document.getElementById(id);
 function upd(){
@@ -71,15 +82,27 @@ function upd(){
 ['vR','rR','cR','spd'].forEach(id=>$(id).oninput=upd); upd();
 $('bIsi').onclick=()=>{mode='isi';$('bIsi').classList.add('on');$('bKosong').classList.remove('on');};
 $('bKosong').onclick=()=>{mode='kosong';$('bKosong').classList.add('on');$('bIsi').classList.remove('on');};
+// ===== Transport: play / pause / stop =====
+const bPlay=$('bPlay');
+function setPlaying(v){
+  playing=v;
+  bPlay.textContent=v?'⏸ Pause':'▶ Play';
+  bPlay.classList.toggle('on',v);
+  $('simState').textContent=v?'▶ Simulasi berjalan':'⏸ Dijeda';
+}
+bPlay.onclick=()=>setPlaying(!playing);
+$('bStop').onclick=()=>{Vc=0;t=0;hist=[];I=0;setPlaying(false);};
 
 let last=performance.now();
 function step(now){
   let dt=Math.min((now-last)/1000,0.1); last=now;
-  const tau=R*C, sdt=dt*speed;
-  if(mode==='isi'){ const d=Vc+(Vs-Vc)*(1-Math.exp(-sdt/tau)); I=(Vs-Vc)/R; Vc=d; }
-  else { Vc=Vc*Math.exp(-sdt/tau); I=-Vc/R; }
-  t+=sdt;
-  hist.push({t,Vc,I}); if(hist.length>400) hist.shift();
+  if(playing){
+    const tau=R*C, sdt=dt*speed;
+    if(mode==='isi'){ const d=Vc+(Vs-Vc)*(1-Math.exp(-sdt/tau)); I=(Vs-Vc)/R; Vc=d; }
+    else { Vc=Vc*Math.exp(-sdt/tau); I=-Vc/R; }
+    t+=sdt;
+    hist.push({t,Vc,I}); if(hist.length>400) hist.shift();
+  }
   // readout
   $('oVc').textContent=Vc.toFixed(2)+' V';
   $('oI').textContent=(I*1000).toFixed(1)+' mA';

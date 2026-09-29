@@ -28,6 +28,12 @@
   #panel .prow button { flex:1; padding:9px; border-radius:8px; border:none; cursor:pointer; font-weight:700; }
   #bDel { background:#7f1d1d; color:#fff; } #bTog { background:#1e40af; color:#fff; }
   #msg { font-size:.85rem; margin-top:10px; min-height:1.4em; color:var(--acc); }
+  .simbar { display:flex; gap:10px; align-items:center; }
+  .simbar button { padding:9px 20px; border-radius:20px; border:1px solid var(--line); background:#0f172a; color:var(--txt); cursor:pointer; font-weight:700; font-size:.85rem; }
+  .simbar button.on { background:var(--acc); color:#111; border-color:var(--acc); }
+  .simbar button#bStop { background:#7f1d1d; border-color:#7f1d1d; color:#fff; }
+  .simbar span { font-size:.82rem; color:var(--mut); margin-left:auto; }
+  #bRot { background:#0e7490; color:#fff; }
 </style>
 </head>
 <body>
@@ -35,6 +41,11 @@
 <h1>Kit Rangkaian <span>DC</span></h1>
 <p class="hint">Rakit rangkaian listrik sendiri di atas grid. Arus tiap komponen dihitung otomatis dengan analisis nodal — persis seperti software simulasi beneran.</p>
 <div class="card"><canvas id="cv" width="644" height="414"></canvas></div>
+<div class="card simbar">
+  <button id="bPlay" class="on">⏸ Pause</button>
+  <button id="bStop">⏹ Stop</button>
+  <span id="simState">▶ Simulasi berjalan</span>
+</div>
 <div class="card">
   <div class="tools" id="tools">
     <button data-t="kursor" class="on">👆 Kursor</button>
@@ -56,6 +67,7 @@
     <div class="kv"><span>Arus lewat</span><b id="pI">-</b></div>
     <div class="kv"><span>Tegangan jepit</span><b id="pV">-</b></div>
     <div class="prow">
+      <button id="bRot">🔄 Putar 90°</button>
       <button id="bTog" style="display:none">Buka/Tutup</button>
       <button id="bDel">Hapus</button>
     </div>
@@ -76,6 +88,7 @@ const TYPES={
 let comps=[], nextId=1, selId=null;
 let tool='kursor', orient='h', dragging=false, ghost=null;
 let sol={vmap:new Map(), cur:new Map(), msg:''};
+let playing=true, flashMsg='', lastT=performance.now();
 
 const pk=(x,y)=>x+','+y;
 function segKey(x1,y1,x2,y2){
@@ -241,9 +254,8 @@ function drawComp(c, t){
   // titik arus
   const I=sol.cur.get(c.id)||0;
   if(Math.abs(I)>1e-4){
-    const dir=I>0?1:-1,n=Math.min(5,1+Math.floor(Math.abs(I)*4));
-    c.ph=((c.ph||0)+dir*0.35/60*(0.4+Math.min(Math.abs(I),6)*0.35))%1;
-    const ph=(c.ph+1)%1;
+    const n=Math.min(5,1+Math.floor(Math.abs(I)*4));
+    const ph=(((c.ph||0)%1)+1)%1;
     cx.fillStyle='#fbbf24';
     for(let k=0;k<n;k++){
       const tt=(ph+k/n)%1,dx=ax+(bx-ax)*tt,dy=ay+(by-ay)*tt;
@@ -267,7 +279,7 @@ function draw(){
   }
   const n=comps.length;
   document.getElementById('msg').textContent =
-    sol.msg || (n? `Rangkaian OK — ${n} komponen.` : 'Kanvs kosong. Pilih komponen lalu seret di kanvas.');
+    flashMsg || sol.msg || (n? `Rangkaian OK — ${n} komponen.` : 'Kanvas kosong. Pilih komponen, lalu seret di kanvas. Ketuk komponen untuk memilih & memutar.');
 }
 
 // ===== Interaksi =====
@@ -362,6 +374,47 @@ function updatePanel(){
   if(c.type==='saklar'){bt.style.display='block';bt.textContent=c.closed?'🔓 Buka saklar':'🔒 Tutup saklar';}
   else bt.style.display='none';
 }
+// ===== Transport: play / pause / stop =====
+const bPlay=document.getElementById('bPlay'), simState=document.getElementById('simState');
+function setPlaying(v){
+  playing=v;
+  bPlay.textContent=v?'⏸ Pause':'▶ Play';
+  bPlay.classList.toggle('on',v);
+  simState.textContent=v?'▶ Simulasi berjalan':'⏸ Dijeda';
+}
+bPlay.onclick=()=>setPlaying(!playing);
+document.getElementById('bStop').onclick=()=>{for(const c of comps)c.ph=0;setPlaying(false);draw();};
+// ===== Putar komponen terpilih 90° =====
+document.getElementById('bRot').onclick=()=>{
+  const c=comps.find(c=>c.id===selId);if(!c)return;
+  const mx=(c.x1+c.x2)/2,my=(c.y1+c.y2)/2;
+  let a,b,cc,d;
+  if(c.x1!==c.x2){a=mx;b=my-1;cc=mx;d=my+1;}
+  else{a=mx-1;b=my;cc=mx+1;d=my;}
+  const others=new Set(comps.filter(o=>o.id!==c.id).map(o=>segKey(o.x1,o.y1,o.x2,o.y2)));
+  const inB=a>=0&&b>=0&&a<=COLS&&b<=ROWS&&cc>=0&&d>=0&&cc<=COLS&&d<=ROWS;
+  if(inB&&!others.has(segKey(a,b,cc,d))){c.x1=a;c.y1=b;c.x2=cc;c.y2=d;flashMsg='';refresh();}
+  else{flashMsg='Tidak bisa diputar di sini (mentok tepi / bertabrakan).';setTimeout(()=>{flashMsg='';},2600);draw();}
+};
+document.addEventListener('keydown',e=>{
+  if((e.key==='r'||e.key==='R')&&tool!=='kursor')document.getElementById('bPutar').click();
+});
+// ===== Loop animasi arus =====
+function loop(now){
+  const dt=Math.min((now-lastT)/1000,.05);lastT=now;
+  if(playing){
+    for(const c of comps){
+      const I=sol.cur.get(c.id)||0;
+      if(Math.abs(I)>1e-4){
+        const dir=I>0?1:-1;
+        c.ph=((c.ph||0)+dir*dt*(0.5+Math.min(Math.abs(I),6)*0.6))%1;
+      }
+    }
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
 refresh();
 </script>
 </body>
